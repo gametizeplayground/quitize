@@ -506,6 +506,12 @@
                 status: 'started',
             });
 
+            // Immediately update quiz state so players leave waiting room
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'countdown',
+                countdown: 5 // or your desired countdown start value
+            });
+
             updateStartButton();
 
             // Hide main container and start quiz countdown
