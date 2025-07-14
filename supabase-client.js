@@ -1,5 +1,5 @@
 // Replace these with your actual Supabase credentials
-const SUPABASE_URL = 'https://flsbmusrqrypeadxywbv.supabase.co';
+const SUPABASE_URL = 'https://idwxcdayhrajngnkehdx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsc2JtdXNycXJ5cGVhZHh5d2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0NTkxODUsImV4cCI6MjA2ODAzNTE4NX0.8Dleg0TIJx1zPC10RbyTyq9HwdC1Cu7_BV-xfTQbkRU';
 
 // Initialize Supabase client
