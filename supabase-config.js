@@ -138,10 +138,12 @@ function handleQuizStateUpdate(payload) {
             phase: newRecord.phase,
             currentQuestion: newRecord.current_question,
             questionData: newRecord.question_data,
-            countdown: newRecord.question_data?.countdown,
-            timeLeft: newRecord.question_data?.timeLeft,
+            countdown: newRecord.question_data?.countdown || newRecord.countdown,
+            timeLeft: newRecord.question_data?.timeLeft || newRecord.timeLeft,
             lastUpdated: newRecord.updated_at
         };
+        
+        console.log('🎯 Extracted quiz state with countdown:', quizState.countdown);
         
         console.log('Quiz state updated:', quizState);
         

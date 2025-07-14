@@ -161,6 +161,11 @@
                 <div class="countdown-mascot">
                     <img src="assets/getready_mascot.png" alt="Get Ready Mascot">
                 </div>
+                
+                <!-- Debug: Test countdown button (remove this later) -->
+                <button onclick="testCountdown()" style="position: fixed; top: 10px; right: 10px; z-index: 1000; background: red; color: white; padding: 10px;">
+                    Test Countdown
+                </button>
             </div>
 
             <div class="player-info">
@@ -484,6 +489,8 @@
             const { quizState } = payload.detail;
             
             console.log('Player received quiz state update:', quizState);
+            console.log('🔍 Countdown value:', quizState.countdown);
+            console.log('🔍 Question data:', quizState.questionData);
             
             switch (quizState.phase) {
                 case 'countdown':
@@ -492,8 +499,12 @@
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     // Update countdown if available
+                    console.log('🔍 Attempting to update countdown with value:', quizState.countdown);
                     if (quizState.countdown !== undefined) {
+                        console.log('✅ Updating countdown display to:', quizState.countdown);
                         updateCountdownDisplay(quizState.countdown);
+                    } else {
+                        console.log('❌ No countdown value found!');
                     }
                     break;
                     
@@ -540,10 +551,33 @@
 
         // Update countdown display
         function updateCountdownDisplay(count) {
+            console.log('🕐 updateCountdownDisplay called with:', count);
             const countdownElements = document.querySelectorAll('.countdown-number');
-            countdownElements.forEach(element => {
-                if (element) element.textContent = count;
+            console.log('🎯 Found countdown elements:', countdownElements.length);
+            
+            countdownElements.forEach((element, index) => {
+                if (element) {
+                    console.log(`📝 Updating element ${index} to:`, count);
+                    element.textContent = count;
+                    console.log(`✅ Element ${index} now shows:`, element.textContent);
+                } else {
+                    console.log(`❌ Element ${index} is null`);
+                }
             });
+        }
+
+        // Test function to verify countdown display works
+        function testCountdown() {
+            console.log('🧪 Testing countdown display...');
+            let count = 5;
+            const testInterval = setInterval(() => {
+                updateCountdownDisplay(count);
+                count--;
+                if (count < 0) {
+                    clearInterval(testInterval);
+                    console.log('🧪 Test countdown complete');
+                }
+            }, 1000);
         }
 
         // Handle game session updates
