@@ -100,6 +100,7 @@ function handleGameSessionUpdate(payload) {
 
 // Handle player updates
 function handlePlayerUpdate(payload) {
+    console.log('handlePlayerUpdate called:', payload);
     const { eventType, new: newRecord, old: oldRecord } = payload;
     
     if (eventType === 'INSERT') {
