@@ -450,20 +450,33 @@
         function handleQuizStateUpdate(payload) {
             const { quizState } = payload.detail;
             
+            console.log('Player received quiz state update:', quizState);
+            
             switch (quizState.phase) {
                 case 'countdown':
-                    showScreen('loading-screen');
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    break;
-                    
-                case 'question-preview':
+                    console.log('Moving to countdown phase');
                     showScreen('countdown-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
+                    // Update countdown if available
+                    if (quizState.countdown !== undefined) {
+                        updateCountdownDisplay(quizState.countdown);
+                    }
+                    break;
+                    
+                case 'question-preview':
+                    console.log('Moving to question preview phase');
+                    showScreen('countdown-screen');
+                    updatePlayerDisplay();
+                    updateScoreDisplay();
+                    // Update countdown if available
+                    if (quizState.countdown !== undefined) {
+                        updateCountdownDisplay(quizState.countdown);
+                    }
                     break;
                     
                 case 'live-question':
+                    console.log('Moving to live question phase');
                     showScreen('question-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
@@ -471,27 +484,52 @@
                     break;
                     
                 case 'results':
+                    console.log('Moving to results phase');
                     showScreen('results-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     break;
                     
                 case 'scoreboard':
+                    console.log('Moving to scoreboard phase');
                     showScreen('loading-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     break;
                     
                 case 'final-results':
+                    console.log('Moving to final results phase');
                     showScreen('final-results-screen');
                     document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
                     break;
             }
         }
 
+        // Update countdown display
+        function updateCountdownDisplay(count) {
+            const countdownElements = document.querySelectorAll('.countdown-number');
+            countdownElements.forEach(element => {
+                if (element) element.textContent = count;
+            });
+        }
+
         // Handle game session updates
         function handleGameSessionUpdate(payload) {
             const { session } = payload.detail;
+            
+            console.log('Player received game session update:', session);
+            
+            // Check if game has started
+            if (session.status === 'started') {
+                console.log('Game started! Moving to quiz...');
+                // Hide the waiting room and prepare for quiz
+                const leaveBtn = document.querySelector('.leave-room-btn');
+                if (leaveBtn) leaveBtn.style.display = 'none';
+                
+                // Start listening for quiz state changes immediately
+                // The first quiz state will be the countdown
+                console.log('Waiting for quiz state updates...');
+            }
             
             if (session.scores && session.scores[playerName]) {
                 currentScore = session.scores[playerName];

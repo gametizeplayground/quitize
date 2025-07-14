@@ -88,8 +88,11 @@ function handleGameSessionUpdate(payload) {
             gameCode: newRecord.game_code,
             players: newRecord.players || [],
             scores: newRecord.scores || {},
+            status: newRecord.status || 'waiting',
             lastUpdated: newRecord.updated_at
         };
+        
+        console.log('Game session updated:', gameSession);
         
         // Trigger custom event for UI updates
         window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
@@ -126,8 +129,12 @@ function handleQuizStateUpdate(payload) {
             phase: newRecord.phase,
             currentQuestion: newRecord.current_question,
             questionData: newRecord.question_data,
+            countdown: newRecord.question_data?.countdown,
+            timeLeft: newRecord.question_data?.timeLeft,
             lastUpdated: newRecord.updated_at
         };
+        
+        console.log('Quiz state updated:', quizState);
         
         window.dispatchEvent(new CustomEvent('quizStateUpdated', {
             detail: { gameCode: newRecord.game_code, quizState: quizState }
@@ -330,11 +337,18 @@ const GameDB = {
 
     // Update quiz state
     async updateQuizState(gameCode, quizState) {
+        // Combine all quiz state data into question_data for storage
+        const questionData = {
+            ...(quizState.questionData || {}),
+            countdown: quizState.countdown,
+            timeLeft: quizState.timeLeft
+        };
+        
         const quizStateData = {
             game_code: gameCode,
             phase: quizState.phase,
             current_question: quizState.currentQuestion,
-            question_data: quizState.questionData,
+            question_data: questionData,
             updated_at: new Date().toISOString()
         };
 
