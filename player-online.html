@@ -309,23 +309,38 @@
 
         // Join the game
         async function joinGame() {
+            console.log('joinGame() called'); // Debug log
+            
             const nicknameInput = document.getElementById('nickname-input');
             const name = nicknameInput.value.trim();
+            
+            console.log('Player name:', name); // Debug log
             
             if (name.length < 2) {
                 showMessage('Please enter a valid name (at least 2 characters)', 'error');
                 return;
             }
 
+            // Disable the button to prevent double-clicks
+            const joinButton = document.getElementById('join-button');
+            if (joinButton) {
+                joinButton.disabled = true;
+                joinButton.textContent = 'Joining...';
+            }
+
             try {
                 playerName = name;
                 playerId = generatePlayerId();
+                
+                console.log('Adding player to game:', currentGameCode, playerId); // Debug log
                 
                 // Add player to game in Supabase
                 await GameDB.addPlayer(currentGameCode, {
                     id: playerId,
                     name: playerName
                 });
+                
+                console.log('Player added successfully'); // Debug log
                 
                 // Start heartbeat to keep player presence alive
                 startHeartbeat();
@@ -336,6 +351,12 @@
             } catch (error) {
                 console.error('Error joining game:', error);
                 showMessage('Error joining game. Please try again.', 'error');
+                
+                // Re-enable the button on error
+                if (joinButton) {
+                    joinButton.disabled = false;
+                    joinButton.textContent = 'JOIN TO THE GAME!';
+                }
             }
         }
 
@@ -380,14 +401,14 @@
         }
 
         // Leave the room
-        async function leaveRoom() {
-            await cleanupPlayer();
+        function leaveRoom() {
+            cleanupPlayer().catch(console.error);
             window.location.href = 'player-online.html';
         }
 
         // Play again
-        async function playAgain() {
-            await cleanupPlayer();
+        function playAgain() {
+            cleanupPlayer().catch(console.error);
             window.location.href = 'player-online.html';
         }
 
@@ -401,7 +422,15 @@
 
         // Show message
         function showMessage(message, type = 'info') {
+            console.log('showMessage called:', message, type); // Debug log
+            
             const container = document.getElementById('message-container');
+            if (!container) {
+                console.error('message-container not found!');
+                alert(message); // Fallback to alert
+                return;
+            }
+            
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
             messageDiv.textContent = message;
@@ -539,6 +568,17 @@
 
         // Initialize the game
         function initializeGame() {
+            console.log('Initializing game...'); // Debug log
+            
+            // Check if GameDB is available
+            if (typeof GameDB === 'undefined') {
+                console.error('GameDB not available! Make sure supabase-config.js is loaded.');
+                showMessage('Game initialization failed. Please refresh the page.', 'error');
+                return;
+            }
+            
+            console.log('GameDB available:', GameDB); // Debug log
+            
             // Check if game code is in URL
             const urlGameCode = getGameCodeFromURL();
             if (urlGameCode) {
@@ -550,8 +590,14 @@
         }
 
         // Clean up on page unload
-        window.addEventListener('beforeunload', async function() {
-            await cleanupPlayer();
+        window.addEventListener('beforeunload', function() {
+            // Don't use async in beforeunload - it can cause issues
+            stopHeartbeat();
+            if (playerId && currentGameCode) {
+                // Use non-blocking cleanup
+                GameDB.removePlayer(currentGameCode, playerId).catch(console.error);
+            }
+            cleanupSubscriptions();
         });
 
         // Clean up on page visibility change (mobile-friendly)
@@ -581,6 +627,12 @@
             if (e.key === 'Enter') {
                 joinGame();
             }
+        });
+
+        // Add click event listener as backup (in case onclick doesn't work)
+        document.getElementById('join-button').addEventListener('click', function(e) {
+            console.log('Join button clicked via event listener'); // Debug log
+            joinGame();
         });
     </script>
 </body>
