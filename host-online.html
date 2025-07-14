@@ -592,6 +592,15 @@
             
             let previewCountdown = 5;
             
+            // Start preview timer bar animation
+            const timerBar = document.getElementById('preview-timer-bar');
+            timerBar.style.width = '100%';
+            timerBar.style.transitionDuration = '5s';
+            
+            setTimeout(() => {
+                timerBar.style.width = '0%';
+            }, 100);
+            
             // Update quiz state for players
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'question-preview',
