@@ -492,7 +492,6 @@
             // Update game state in Supabase
             await GameDB.updateGameSession(currentGameCode, {
                 status: 'started',
-                startTime: new Date().toISOString()
             });
 
             updateStartButton();
