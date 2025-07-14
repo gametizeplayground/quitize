@@ -38,8 +38,8 @@ class GameDatabase {
           game_code: code,
           players: sessionData.players || [],
           scores: sessionData.scores || {},
-          quiz: sessionData.quiz || {},
-          status: sessionData.status || 'waiting'
+          quiz: sessionData.quiz || sessionData.quizState || {},
+          status: sessionData.status || sessionData.state || 'waiting'
         })
         .select()
         .single();

@@ -354,7 +354,7 @@
         }
 
         // Enter game code function
-        function enterGameCode() {
+        async function enterGameCode() {
             if (isLoading) return;
             
             const input = document.getElementById('game-code-input');
@@ -368,10 +368,11 @@
             gameCode = cleanCode;
             showLoading(true);
             
-            // Simulate API call
-            setTimeout(() => {
-                // Check if game code is valid (mock validation)
-                if (validateGameCode(gameCode)) {
+            try {
+                // Check if game code is valid using Supabase database
+                const isValid = await validateGameCode(gameCode);
+                
+                if (isValid) {
                     // Direct transition to nickname screen without message
                     showLoading(false);
                     showScreen('nickname-screen');
@@ -383,11 +384,16 @@
                     showMessage('Game not found. Please check your code.', 'error');
                     input.focus();
                 }
-            }, 1000);
+            } catch (error) {
+                console.error('Error validating game code:', error);
+                showLoading(false);
+                showMessage('Connection error. Please try again.', 'error');
+                input.focus();
+            }
         }
 
         // Join game function
-        function joinGame() {
+        async function joinGame() {
             if (isLoading) return;
             
             const input = document.getElementById('nickname-input');
@@ -401,26 +407,28 @@
             playerName = name;
             showNicknameLoading(true);
             
-            // Simulate joining game
-            setTimeout(() => {
-                showNicknameLoading(false);
-                
+            try {
                 // Add player to the game session
-                addPlayerToGame(gameCode, playerName);
+                await addPlayerToGame(gameCode, playerName);
                 
+                showNicknameLoading(false);
                 document.getElementById('player-name-display').textContent = playerName;
                 showScreen('waiting-room-screen');
                 
                 // Start listening for game state changes
                 startGameStateListener();
-            }, 1000);
+            } catch (error) {
+                console.error('Error joining game:', error);
+                showNicknameLoading(false);
+                showNicknameMessage('Failed to join game. Please try again.', 'error');
+            }
         }
 
         // Leave room function
-        function leaveRoom() {
+        async function leaveRoom() {
             if (confirm('Are you sure you want to leave the room?')) {
                 // Remove player from game session
-                removePlayerFromGame(gameCode, playerName);
+                await removePlayerFromGame(gameCode, playerName);
                 
                 // Stop listening for game state changes
                 stopGameStateListener();
@@ -438,8 +446,8 @@
         }
 
         // Game session management functions
-        function addPlayerToGame(code, name) {
-            let gameSession = JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
+        async function addPlayerToGame(code, name) {
+            let gameSession = await getGameSession(code);
             
             if (!gameSession.players) {
                 gameSession.players = [];
@@ -461,25 +469,15 @@
                 gameSession.state = 'waiting';
             }
             
-            localStorage.setItem(`game_${code}`, JSON.stringify(gameSession));
-            
-            // Trigger storage event for host page
-            window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
-                detail: { gameCode: code, session: gameSession }
-            }));
+            await saveGameSession(code, gameSession);
         }
 
-        function removePlayerFromGame(code, name) {
-            let gameSession = JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
+        async function removePlayerFromGame(code, name) {
+            let gameSession = await getGameSession(code);
             
             if (gameSession.players) {
                 gameSession.players = gameSession.players.filter(p => p.name !== name);
-                localStorage.setItem(`game_${code}`, JSON.stringify(gameSession));
-                
-                // Trigger storage event for host page
-                window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
-                    detail: { gameCode: code, session: gameSession }
-                }));
+                await saveGameSession(code, gameSession);
             }
         }
 
@@ -954,11 +952,22 @@
             });
         }
 
-        // Game code validation using localStorage
-        function validateGameCode(code) {
+        // Game code validation using Supabase database
+        async function validateGameCode(code) {
             // Check if there's an active game session with this code
-            const session = JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
-            return session.gameCode === code && session.state === 'waiting';
+            const session = await getGameSession(code);
+            
+            // Check if session exists and has the matching game code
+            if (session && (session.gameCode === code || session.game_code === code)) {
+                return true;
+            }
+            
+            // Also check if session has players array (indicates it's a valid game)
+            if (session && session.players !== undefined) {
+                return true;
+            }
+            
+            return false;
         }
 
         // Show loading state for game code

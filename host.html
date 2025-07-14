@@ -262,15 +262,15 @@
         ];
 
         // Generate random game code
-        function generateGameCode() {
+        async function generateGameCode() {
             gameCode = Math.floor(100000 + Math.random() * 900000).toString();
             // Format with space for display
             const formattedCode = gameCode.slice(0, 3) + ' ' + gameCode.slice(3);
             document.getElementById('display-game-code').textContent = formattedCode;
             
-            // Initialize game session in localStorage
+            // Initialize game session in database
             currentGameCode = gameCode;
-            initializeGameSession(gameCode);
+            await initializeGameSession(gameCode);
             
             // Generate QR code for the game
             generateQRCode();
@@ -1081,13 +1081,13 @@
         }
 
         // Initialize the game
-        function initializeGame() {
-            generateGameCode();
+        async function initializeGame() {
+            await generateGameCode();
             updatePlayersDisplay();
             updatePlayerCount();
             updateStartButton();
             
-            // Start listening for players joining from localStorage
+            // Start listening for players joining from database
             startPlayerListener();
         }
 
