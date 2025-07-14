@@ -24,9 +24,13 @@ CREATE TABLE IF NOT EXISTS players (
     player_id VARCHAR(50) NOT NULL,
     name VARCHAR(50) NOT NULL,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(game_code, player_id),
     FOREIGN KEY (game_code) REFERENCES game_sessions(game_code) ON DELETE CASCADE
 );
+
+-- Add last_active column if it doesn't exist (for existing installations)
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_active TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
 -- Answers Table
 CREATE TABLE IF NOT EXISTS answers (
@@ -55,6 +59,7 @@ CREATE TABLE IF NOT EXISTS quiz_states (
 CREATE INDEX IF NOT EXISTS idx_game_sessions_game_code ON game_sessions(game_code);
 CREATE INDEX IF NOT EXISTS idx_players_game_code ON players(game_code);
 CREATE INDEX IF NOT EXISTS idx_players_player_id ON players(player_id);
+CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active);
 CREATE INDEX IF NOT EXISTS idx_answers_game_code ON answers(game_code);
 CREATE INDEX IF NOT EXISTS idx_answers_question_index ON answers(question_index);
 CREATE INDEX IF NOT EXISTS idx_quiz_states_game_code ON quiz_states(game_code);

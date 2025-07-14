@@ -269,6 +269,7 @@
         let playerId = '';
         let currentScore = 0;
         let questionStartTime = 0;
+        let heartbeatInterval = null;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -326,6 +327,9 @@
                     name: playerName
                 });
                 
+                // Start heartbeat to keep player presence alive
+                startHeartbeat();
+                
                 showScreen('waiting-room-screen');
                 updatePlayerDisplay();
                 
@@ -340,22 +344,50 @@
             return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
-        // Leave the room
-        async function leaveRoom() {
-            try {
-                if (playerId) {
-                    await GameDB.removePlayer(currentGameCode, playerId);
+        // Start heartbeat to keep player presence alive
+        function startHeartbeat() {
+            // Send heartbeat every 5 seconds
+            heartbeatInterval = setInterval(async () => {
+                try {
+                    if (playerId && currentGameCode) {
+                        await GameDB.updatePlayerHeartbeat(currentGameCode, playerId);
+                    }
+                } catch (error) {
+                    console.error('Error sending heartbeat:', error);
                 }
-                cleanupSubscriptions();
-                window.location.href = 'player-online.html';
-            } catch (error) {
-                console.error('Error leaving room:', error);
+            }, 5000);
+        }
+
+        // Stop heartbeat
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
             }
         }
 
-        // Play again
-        function playAgain() {
+        // Clean up player data
+        async function cleanupPlayer() {
+            stopHeartbeat();
+            if (playerId && currentGameCode) {
+                try {
+                    await GameDB.removePlayer(currentGameCode, playerId);
+                } catch (error) {
+                    console.error('Error removing player:', error);
+                }
+            }
             cleanupSubscriptions();
+        }
+
+        // Leave the room
+        async function leaveRoom() {
+            await cleanupPlayer();
+            window.location.href = 'player-online.html';
+        }
+
+        // Play again
+        async function playAgain() {
+            await cleanupPlayer();
             window.location.href = 'player-online.html';
         }
 
@@ -518,8 +550,20 @@
         }
 
         // Clean up on page unload
-        window.addEventListener('beforeunload', function() {
-            cleanupSubscriptions();
+        window.addEventListener('beforeunload', async function() {
+            await cleanupPlayer();
+        });
+
+        // Clean up on page visibility change (mobile-friendly)
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                // Stop heartbeat immediately when page is hidden
+                stopHeartbeat();
+                // The absence of heartbeat will cause cleanup within 15-23 seconds
+            } else if (document.visibilityState === 'visible' && playerId && currentGameCode) {
+                // Resume heartbeat when page becomes visible again
+                startHeartbeat();
+            }
         });
 
         // Initialize when page loads

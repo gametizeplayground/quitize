@@ -419,6 +419,18 @@
             }
         }
 
+        // Clean up inactive players
+        async function cleanupInactivePlayers() {
+            try {
+                if (currentGameCode) {
+                    await GameDB.cleanupInactivePlayers(currentGameCode);
+                    console.log('Cleaned up inactive players');
+                }
+            } catch (error) {
+                console.error('Error cleaning up inactive players:', error);
+            }
+        }
+
         // Listen for player changes
         function startPlayerListener() {
             // Listen for custom events from Supabase subscriptions
@@ -900,6 +912,8 @@
             startPlayerListener();
             // Periodic refresh for player list (fallback for real-time)
             setInterval(updatePlayerListFromSession, 3000);
+            // Periodic cleanup of inactive players
+            setInterval(() => cleanupInactivePlayers(), 8000);
         }
 
         // Handle keyboard shortcuts

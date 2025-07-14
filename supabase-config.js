@@ -198,13 +198,17 @@ const GameDB = {
 
     // Add player to game
     async addPlayer(gameCode, player) {
+        // First, check if player already exists and remove any old entries
+        await this.removePlayerByName(gameCode, player.name);
+        
         const { data, error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
             .insert({
                 game_code: gameCode,
                 name: player.name,
                 player_id: player.id,
-                joined_at: new Date().toISOString()
+                joined_at: new Date().toISOString(),
+                last_active: new Date().toISOString()
             })
             .select()
             .single();
@@ -217,7 +221,7 @@ const GameDB = {
         return data;
     },
 
-    // Remove player from game
+    // Remove player from game by player ID
     async removePlayer(gameCode, playerId) {
         const { error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
@@ -228,6 +232,50 @@ const GameDB = {
         if (error) {
             console.error('Error removing player:', error);
             throw error;
+        }
+    },
+
+    // Remove player from game by name (for duplicate prevention)
+    async removePlayerByName(gameCode, playerName) {
+        const { error } = await window.supabaseClient
+            .from(TABLES.PLAYERS)
+            .delete()
+            .eq('game_code', gameCode)
+            .eq('name', playerName);
+            
+        if (error) {
+            console.error('Error removing player by name:', error);
+            // Don't throw error as this is cleanup
+        }
+    },
+
+    // Update player heartbeat
+    async updatePlayerHeartbeat(gameCode, playerId) {
+        const { error } = await window.supabaseClient
+            .from(TABLES.PLAYERS)
+            .update({
+                last_active: new Date().toISOString()
+            })
+            .eq('game_code', gameCode)
+            .eq('player_id', playerId);
+            
+        if (error) {
+            console.error('Error updating player heartbeat:', error);
+        }
+    },
+
+    // Clean up inactive players (remove players inactive for more than 15 seconds)
+    async cleanupInactivePlayers(gameCode) {
+        const fifteenSecondsAgo = new Date(Date.now() - 15000).toISOString();
+        
+        const { error } = await window.supabaseClient
+            .from(TABLES.PLAYERS)
+            .delete()
+            .eq('game_code', gameCode)
+            .lt('last_active', fifteenSecondsAgo);
+            
+        if (error) {
+            console.error('Error cleaning up inactive players:', error);
         }
     },
 
