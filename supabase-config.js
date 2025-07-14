@@ -3,7 +3,7 @@ const SUPABASE_URL = 'https://idwxcdayhrajngnkehdx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkd3hjZGF5aHJham5nbmtlaGR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0NjMwNTYsImV4cCI6MjA2ODAzOTA1Nn0.uC_1moEisN3Vh4dNeyOOAr-FdaoaNp1G_lkRGJoSxzY';
 
 // Initialize Supabase client
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Database table names
 const TABLES = {
@@ -20,7 +20,7 @@ let quizStateSubscription = null;
 // Initialize real-time subscriptions for a game
 function initializeGameSubscriptions(gameCode) {
     // Subscribe to game session changes
-    gameSessionSubscription = supabase
+    gameSessionSubscription = window.supabaseClient
         .channel(`game_${gameCode}`)
         .on('postgres_changes', 
             { 
@@ -49,7 +49,7 @@ function initializeGameSubscriptions(gameCode) {
         .subscribe();
 
     // Subscribe to quiz state changes
-    quizStateSubscription = supabase
+    quizStateSubscription = window.supabaseClient
         .channel(`quiz_${gameCode}`)
         .on('postgres_changes', 
             { 
@@ -69,11 +69,11 @@ function initializeGameSubscriptions(gameCode) {
 // Clean up subscriptions
 function cleanupSubscriptions() {
     if (gameSessionSubscription) {
-        supabase.removeChannel(gameSessionSubscription);
+        window.supabaseClient.removeChannel(gameSessionSubscription);
         gameSessionSubscription = null;
     }
     if (quizStateSubscription) {
-        supabase.removeChannel(quizStateSubscription);
+        window.supabaseClient.removeChannel(quizStateSubscription);
         quizStateSubscription = null;
     }
 }
@@ -138,7 +138,7 @@ function handleQuizStateUpdate(payload) {
 const GameDB = {
     // Create a new game session
     async createGameSession(gameCode) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.GAME_SESSIONS)
             .insert({
                 game_code: gameCode,
@@ -161,7 +161,7 @@ const GameDB = {
 
     // Get game session
     async getGameSession(gameCode) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.GAME_SESSIONS)
             .select('*')
             .eq('game_code', gameCode)
@@ -177,7 +177,7 @@ const GameDB = {
 
     // Update game session
     async updateGameSession(gameCode, updates) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.GAME_SESSIONS)
             .update({
                 ...updates,
@@ -197,7 +197,7 @@ const GameDB = {
 
     // Add player to game
     async addPlayer(gameCode, player) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
             .insert({
                 game_code: gameCode,
@@ -218,7 +218,7 @@ const GameDB = {
 
     // Remove player from game
     async removePlayer(gameCode, playerId) {
-        const { error } = await supabase
+        const { error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
             .delete()
             .eq('game_code', gameCode)
@@ -232,7 +232,7 @@ const GameDB = {
 
     // Submit player answer
     async submitAnswer(gameCode, playerId, questionIndex, answer, timeTaken) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.ANSWERS)
             .insert({
                 game_code: gameCode,
@@ -255,7 +255,7 @@ const GameDB = {
 
     // Update quiz state
     async updateQuizState(gameCode, quizState) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.QUIZ_STATES)
             .upsert({
                 game_code: gameCode,
@@ -277,7 +277,7 @@ const GameDB = {
 
     // Get answers for a question
     async getQuestionAnswers(gameCode, questionIndex) {
-        const { data, error } = await supabase
+        const { data, error } = await window.supabaseClient
             .from(TABLES.ANSWERS)
             .select('*')
             .eq('game_code', gameCode)
