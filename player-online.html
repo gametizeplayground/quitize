@@ -348,6 +348,16 @@
                 showScreen('waiting-room-screen');
                 updatePlayerDisplay();
                 
+                // Test that event listeners are working
+                console.log('🧪 Testing event listener setup...');
+                window.dispatchEvent(new CustomEvent('quizStateUpdated', {
+                    detail: { 
+                        gameCode: currentGameCode, 
+                        quizState: { phase: 'test', countdown: 0 } 
+                    }
+                }));
+                console.log('🧪 Test event dispatched');
+                
             } catch (error) {
                 console.error('Error joining game:', error);
                 showMessage('Error joining game. Please try again.', 'error');
@@ -414,10 +424,12 @@
 
         // Show a specific screen
         function showScreen(screenId) {
+            console.log('🖥️ Switching to screen:', screenId); // Debug log
             document.querySelectorAll('.screen').forEach(screen => {
                 screen.classList.remove('active');
             });
             document.getElementById(screenId).classList.add('active');
+            console.log('✅ Screen switched. Active screen is now:', screenId); // Debug log
         }
 
         // Show message
@@ -509,10 +521,14 @@
 
         // Handle quiz state updates
         function handleQuizStateUpdate(payload) {
+            console.log('🎮 Player received quiz state update:', payload.detail); // Debug log
             const { quizState } = payload.detail;
+            
+            console.log('📱 Current screen before transition:', document.querySelector('.screen.active')?.id); // Debug log
             
             switch (quizState.phase) {
                 case 'countdown':
+                    console.log('⏱️ Transitioning to loading screen for countdown'); // Debug log
                     showScreen('loading-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
@@ -547,6 +563,10 @@
                     showScreen('final-results-screen');
                     document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
                     break;
+                    
+                case 'test':
+                    console.log('🧪 Test event received successfully! Event listeners are working.'); // Debug log
+                    break;
             }
         }
 
@@ -562,8 +582,10 @@
 
         // Initialize event listeners
         function initializeEventListeners() {
+            console.log('🎧 Setting up event listeners for quiz state updates'); // Debug log
             window.addEventListener('quizStateUpdated', handleQuizStateUpdate);
             window.addEventListener('gameSessionUpdated', handleGameSessionUpdate);
+            console.log('✅ Event listeners set up successfully'); // Debug log
         }
 
         // Initialize the game
