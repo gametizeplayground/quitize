@@ -239,8 +239,6 @@
         </div>
     </div>
 
-
-
     <script>
         let players = [];
         let gameCode = '';
@@ -265,15 +263,24 @@
         ];
 
         // Generate random game code
-        function generateGameCode() {
+        async function generateGameCode() {
             gameCode = Math.floor(100000 + Math.random() * 900000).toString();
             // Format with space for display
             const formattedCode = gameCode.slice(0, 3) + ' ' + gameCode.slice(3);
             document.getElementById('display-game-code').textContent = formattedCode;
             
-            // Initialize game session in localStorage
+            // Initialize game session in Supabase
             currentGameCode = gameCode;
-            initializeGameSession(gameCode);
+            try {
+                await GameDB.createGameSession(gameCode);
+                // Initialize real-time subscriptions
+                initializeGameSubscriptions(gameCode);
+                console.log('Game session created successfully');
+            } catch (error) {
+                console.error('Failed to create game session:', error);
+                alert('Failed to create game session. Please try again.');
+                return;
+            }
             
             // Generate QR code for the game
             generateQRCode();
@@ -285,7 +292,7 @@
         function generateQRCode() {
             // Construct the game URL with the current domain and game code
             const baseURL = window.location.origin;
-            const gameURL = `${baseURL}/player.html?code=${currentGameCode}`;
+            const gameURL = `${baseURL}/player-online.html?code=${currentGameCode}`;
             
             // Use QR Server API to generate the QR code
             const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(gameURL)}`;
@@ -376,107 +383,50 @@
             }, 3000);
         }
 
-        // Game session management functions
-        function getGameSession(code) {
-            return JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
-        }
-
-        function initializeGameSession(code) {
-            const session = {
-                gameCode: code,
-                hostId: Date.now(),
-                players: [],
-                state: 'waiting',
-                createdAt: new Date().toISOString()
-            };
-            localStorage.setItem(`game_${code}`, JSON.stringify(session));
-            return session;
-        }
-
-        function updatePlayerListFromSession() {
-            const session = getGameSession(currentGameCode);
-            if (session.players) {
-                // Get new player list
-                const newPlayers = session.players.map(p => p.name);
-                
-                // Only update if there are actual changes
-                if (JSON.stringify(players) !== JSON.stringify(newPlayers)) {
-                    players = newPlayers;
+        // Update player list from Supabase
+        async function updatePlayerListFromSession() {
+            try {
+                const session = await GameDB.getGameSession(currentGameCode);
+                if (session && session.players) {
+                    // Get new player list
+                    const newPlayers = session.players.map(p => p.name);
                     
-                    // Update the player count and list
-                    const playerCount = session.players.length;
-                    document.getElementById('player-count').textContent = playerCount;
-                    
-                    // Update the players display
-                    updatePlayersDisplay();
-                    updateStartButton();
+                    // Only update if there are actual changes
+                    if (JSON.stringify(players) !== JSON.stringify(newPlayers)) {
+                        players = newPlayers;
+                        
+                        // Update the player count and list
+                        const playerCount = session.players.length;
+                        document.getElementById('player-count').textContent = playerCount;
+                        
+                        // Update the players display
+                        updatePlayersDisplay();
+                        updateStartButton();
+                    }
                 }
+            } catch (error) {
+                console.error('Error updating player list:', error);
             }
         }
 
         // Listen for player changes
         function startPlayerListener() {
-            // Check for player changes every 3000ms (3 seconds)
-            setInterval(() => {
-                updatePlayerListFromSession();
-            }, 3000);
-            
-            // Also listen for storage events
-            window.addEventListener('storage', function(e) {
-                if (e.key === `game_${currentGameCode}`) {
-                    updatePlayerListFromSession();
-                }
-            });
-            
-            // Listen for custom events
+            // Listen for custom events from Supabase subscriptions
             window.addEventListener('gameSessionUpdated', function(e) {
                 if (e.detail.gameCode === currentGameCode) {
                     updatePlayerListFromSession();
                 }
             });
-        }
 
-        // Add a player to the game
-        function addPlayer(name) {
-            if (!players.includes(name)) {
-                players.push(name);
-                
-                // Also update the session in localStorage
-                const session = getGameSession(currentGameCode);
-                if (!session.players) {
-                    session.players = [];
-                }
-                
-                // Check if player already exists in session
-                const existingPlayer = session.players.find(p => p.name === name);
-                if (!existingPlayer) {
-                    session.players.push({
-                        name: name,
-                        joinedAt: new Date().toISOString()
-                    });
-                    localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
-                }
-                
-                updatePlayersDisplay();
-                updatePlayerCount();
-                updateStartButton();
-            }
-        }
+            window.addEventListener('playerJoined', function(e) {
+                console.log('Player joined:', e.detail.player);
+                updatePlayerListFromSession();
+            });
 
-        // Remove a player from the game
-        function removePlayer(name) {
-            players = players.filter(player => player !== name);
-            
-            // Also remove from session in localStorage
-            const session = getGameSession(currentGameCode);
-            if (session.players) {
-                session.players = session.players.filter(p => p.name !== name);
-                localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
-            }
-            
-            updatePlayersDisplay();
-            updatePlayerCount();
-            updateStartButton();
+            window.addEventListener('playerLeft', function(e) {
+                console.log('Player left:', e.detail.player);
+                updatePlayerListFromSession();
+            });
         }
 
         // Update the players display
@@ -517,40 +467,38 @@
         }
 
         // Start the game
-        function startGame() {
-            // Check for players from localStorage first
-            const session = getGameSession(currentGameCode);
-            const totalPlayers = session.players ? session.players.length : players.length;
-            
-            if (totalPlayers === 0) {
-                alert('No players have joined yet!');
-                return;
-            }
-
-            gameStarted = true;
-            
-            // Update game state in localStorage to notify players
-            if (session.players) {
-                session.state = 'started';
-                session.startTime = new Date().toISOString();
-                localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
+        async function startGame() {
+            try {
+                const session = await GameDB.getGameSession(currentGameCode);
+                const totalPlayers = session && session.players ? session.players.length : players.length;
                 
-                // Trigger storage event for player pages
-                window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
-                    detail: { gameCode: currentGameCode, session: session }
-                }));
+                if (totalPlayers === 0) {
+                    alert('No players have joined yet!');
+                    return;
+                }
+
+                gameStarted = true;
+                
+                // Update game state in Supabase
+                await GameDB.updateGameSession(currentGameCode, {
+                    status: 'started',
+                    startTime: new Date().toISOString()
+                });
+                
+                updateStartButton();
+                
+                // Hide main container and start quiz countdown
+                document.querySelector('.main-container').style.display = 'none';
+                document.querySelector('.header').style.display = 'none';
+                showQuizCountdown();
+            } catch (error) {
+                console.error('Error starting game:', error);
+                alert('Failed to start game. Please try again.');
             }
-            
-            updateStartButton();
-            
-            // Hide main container and start quiz countdown
-            document.querySelector('.main-container').style.display = 'none';
-            document.querySelector('.header').style.display = 'none';
-            showQuizCountdown();
         }
 
         // Show quiz countdown screen
-        function showQuizCountdown() {
+        async function showQuizCountdown() {
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
             
@@ -559,17 +507,17 @@
             countdownElement.textContent = countdown;
             
             // Update quiz state for players immediately
-            updateQuizState({
+            await GameDB.updateQuizState(currentGameCode, {
                 phase: 'countdown',
                 countdown: countdown
             });
             
-            const countdownInterval = setInterval(() => {
+            const countdownInterval = setInterval(async () => {
                 countdown--;
                 if (countdown > 0) {
                     countdownElement.textContent = countdown;
                     // Update countdown for players
-                    updateQuizState({
+                    await GameDB.updateQuizState(currentGameCode, {
                         phase: 'countdown',
                         countdown: countdown
                     });
@@ -582,7 +530,7 @@
         }
 
         // Show question preview screen
-        function showQuestionPreview() {
+        async function showQuestionPreview() {
             const previewScreen = document.getElementById('question-preview-screen');
             const question = quizQuestions[currentQuestionIndex];
             
@@ -596,214 +544,92 @@
             let previewCountdown = 5;
             
             // Update quiz state for players
-            updateQuizState({
+            await GameDB.updateQuizState(currentGameCode, {
                 phase: 'question-preview',
-                countdown: previewCountdown,
                 currentQuestion: currentQuestionIndex,
-                questionData: question
+                questionData: question,
+                countdown: previewCountdown
             });
             
-            // Start preview timer
-            const timerBar = document.getElementById('preview-timer-bar');
-            timerBar.style.width = '100%';
-            timerBar.style.transitionDuration = '5s';
-            
-            setTimeout(() => {
-                timerBar.style.width = '0%';
-            }, 100);
-            
-            // Countdown for players
-            const previewInterval = setInterval(() => {
+            const previewInterval = setInterval(async () => {
                 previewCountdown--;
                 if (previewCountdown > 0) {
-                    updateQuizState({
+                    // Update countdown for players
+                    await GameDB.updateQuizState(currentGameCode, {
                         phase: 'question-preview',
-                        countdown: previewCountdown,
                         currentQuestion: currentQuestionIndex,
-                        questionData: question
+                        questionData: question,
+                        countdown: previewCountdown
                     });
                 } else {
                     clearInterval(previewInterval);
+                    previewScreen.classList.remove('active');
+                    showLiveQuestion();
                 }
             }, 1000);
-            
-            // After 5 seconds, show live question
-            setTimeout(() => {
-                previewScreen.classList.remove('active');
-                showLiveQuestion();
-            }, 5000);
         }
 
         // Show live question screen
-        function showLiveQuestion() {
+        async function showLiveQuestion() {
             const liveScreen = document.getElementById('live-question-screen');
             const question = quizQuestions[currentQuestionIndex];
             
             // Update question content
-            document.getElementById('live-question-text').textContent = question.title;
-            document.getElementById('live-question-counter').textContent = `${currentQuestionIndex + 1}/${quizQuestions.length}`;
-            document.getElementById('live-question-image').src = question.image;
+            liveScreen.querySelector('.quiz-title').textContent = question.title;
+            liveScreen.querySelector('.question-counter').textContent = `${currentQuestionIndex + 1}/${quizQuestions.length}`;
+            liveScreen.querySelector('.question-image').src = question.image;
             
             // Update answer options
-            const options = ['A', 'B', 'C', 'D'];
-            options.forEach((letter, index) => {
-                const optionElement = liveScreen.querySelector(`.option-${letter.toLowerCase()} .option-text`);
-                if (optionElement && question.options[index]) {
-                    optionElement.textContent = question.options[index];
-                }
-            });
+            const optionTexts = liveScreen.querySelectorAll('.option-text');
+            optionTexts[0].textContent = question.options[0]; // A
+            optionTexts[1].textContent = question.options[1]; // B
+            optionTexts[2].textContent = question.options[2]; // C
+            optionTexts[3].textContent = question.options[3]; // D
             
             liveScreen.classList.add('active');
             
-            // Update quiz state for players - show question options
-            updateQuizState({
+            // Update quiz state for players
+            await GameDB.updateQuizState(currentGameCode, {
                 phase: 'live-question',
                 currentQuestion: currentQuestionIndex,
-                questionData: question,
-                timeLeft: 20
+                questionData: question
             });
             
             // Start question timer
-            let timeLeft = 20;
+            let questionTime = 20;
             const timerElement = document.getElementById('question-timer');
+            timerElement.textContent = questionTime;
             
-            questionTimer = setInterval(() => {
-                timeLeft--;
-                timerElement.textContent = timeLeft;
-                
-                // Update time for players
-                updateQuizState({
-                    phase: 'live-question',
-                    currentQuestion: currentQuestionIndex,
-                    questionData: question,
-                    timeLeft: timeLeft
-                });
-                
-                if (timeLeft <= 0) {
+            questionTimer = setInterval(async () => {
+                questionTime--;
+                if (questionTime > 0) {
+                    timerElement.textContent = questionTime;
+                } else {
                     clearInterval(questionTimer);
                     liveScreen.classList.remove('active');
-                    showQuizResults();
+                    showQuestionResults();
                 }
             }, 1000);
         }
 
-        // Show quiz results screen
-        function showQuizResults() {
+        // Show question results
+        async function showQuestionResults() {
             const resultsScreen = document.getElementById('quiz-results-screen');
             const question = quizQuestions[currentQuestionIndex];
-
-            // --- KAHOOT SCORING LOGIC ---
-            const session = getGameSession(currentGameCode);
-            const playerAnswers = (session.playerAnswers && session.playerAnswers[currentQuestionIndex]) || {};
-            const questionTimeLimit = 20000; // 20 seconds in milliseconds
-            const playerResults = {};
             
-            Object.entries(playerAnswers).forEach(([name, data]) => {
-                // Fix: Compare answer indices instead of comparing letters to text
-                const playerAnswerIndex = ['A', 'B', 'C', 'D'].indexOf(data.answer);
-                const isCorrect = playerAnswerIndex === question.correct;
-                let points = 0;
-                
-                if (isCorrect) {
-                    // Kahoot scoring formula: Score = (1 - (TimeTaken / QuestionTimeLimit)) × 500 + 500
-                    const timeTaken = Math.min(data.timeTaken, questionTimeLimit); // Cap at time limit
-                    points = Math.round((1 - (timeTaken / questionTimeLimit)) * 500 + 500);
-                    // Ensure points are within valid range
-                    points = Math.max(500, Math.min(1000, points));
-                }
-                
-                playerResults[name] = { 
-                    correct: isCorrect, 
-                    points: points 
-                };
-            });
-            
-            // Update scores in session
-            if (!session.scores) session.scores = {};
-            Object.entries(playerResults).forEach(([name, res]) => {
-                if (!session.scores[name]) session.scores[name] = 0;
-                session.scores[name] += res.points;
-            });
-            // Store result state for each player
-            session.resultState = session.resultState || {};
-            Object.entries(playerResults).forEach(([name, res]) => {
-                session.resultState[name] = {
-                    correct: res.correct,
-                    points: res.points,
-                    total: session.scores[name]
-                };
-            });
-            localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
-            // --- END KAHOOT SCORING LOGIC ---
-
-            // Update quiz state for players
-            updateQuizState({
-                phase: 'results',
-                currentQuestion: currentQuestionIndex,
-                questionData: question,
-                correctAnswer: question.correct
-            });
-            
-            // Update the new results screen format
-            const quizTitle = resultsScreen.querySelector('.quiz-title');
-            const correctAnswerText = document.getElementById('correct-answer-text');
-            
-            if (quizTitle) {
-                quizTitle.textContent = `Quiz ${currentQuestionIndex + 1}`;
-            }
-            
-            if (correctAnswerText) {
-                const correctOption = ['A', 'B', 'C', 'D'][question.correct];
-                correctAnswerText.textContent = correctOption;
-            }
-            
-            // Update answer statistics with real player data
-            updateAnswerStatistics(playerAnswers, question);
-            
-            resultsScreen.classList.add('active');
-        }
-
-        // Generate mock statistics for demo
-        function generateMockStats() {
-            const total = players.length || 12;
-            const stats = [0, 0, 0, 0];
-            
-            // Give more answers to the correct option
-            const question = quizQuestions[currentQuestionIndex];
-            const correctIndex = question.correct;
-            
-            stats[correctIndex] = Math.floor(total * 0.6); // 60% correct
-            const remaining = total - stats[correctIndex];
-            
-            // Distribute remaining answers
-            for (let i = 0; i < 4; i++) {
-                if (i !== correctIndex && remaining > 0) {
-                    stats[i] = Math.floor(Math.random() * (remaining + 1));
-                }
-            }
-            
-            // Ensure total matches
-            const currentTotal = stats.reduce((sum, count) => sum + count, 0);
-            if (currentTotal < total) {
-                stats[correctIndex] += (total - currentTotal);
-            }
-            
-            return stats;
-        }
-
-        // Update answer statistics with real player data
-        function updateAnswerStatistics(playerAnswers, question) {
-            const answerCounts = [0, 0, 0, 0]; // A, B, C, D counts
+            // Get answers from Supabase
+            const answers = await GameDB.getQuestionAnswers(currentGameCode, currentQuestionIndex);
             
             // Count answers
-            Object.entries(playerAnswers).forEach(([name, data]) => {
-                const answerIndex = ['A', 'B', 'C', 'D'].indexOf(data.answer);
-                if (answerIndex !== -1) {
-                    answerCounts[answerIndex]++;
+            const answerCounts = [0, 0, 0, 0]; // A, B, C, D
+            answers.forEach(answer => {
+                const index = answer.answer.charCodeAt(0) - 65; // Convert A=0, B=1, etc.
+                if (index >= 0 && index < 4) {
+                    answerCounts[index]++;
                 }
             });
             
-            // Update vertical bar chart with animation
+            // Update answer bars
             const maxCount = Math.max(...answerCounts, 1);
             ['a', 'b', 'c', 'd'].forEach((letter, index) => {
                 const count = answerCounts[index];
@@ -811,30 +637,20 @@
                 const countElement = document.getElementById(`answer-${letter}-count`);
                 
                 if (barElement && countElement) {
-                    // Reset height to 0 first
-                    barElement.style.height = '0%';
-                    countElement.textContent = count;
-                    
-                    // Calculate percentage for height
                     const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                    
-                    // Animate to final height with delay
-                    setTimeout(() => {
-                        barElement.style.height = `${percentage}%`;
-                    }, 300 + (index * 100)); // Staggered animation
+                    barElement.style.height = `${percentage}%`;
+                    countElement.textContent = count;
                 }
             });
             
-            // Update bottom option buttons with actual quiz text and highlight correct answer
+            // Update answer options with correct answer highlighting
             ['a', 'b', 'c', 'd'].forEach((letter, index) => {
                 const optionElement = document.getElementById(`result-option-${letter}`);
                 const textElement = document.getElementById(`result-option-text-${letter}`);
                 
                 if (optionElement && textElement) {
-                    // Update text with actual quiz option
                     textElement.textContent = question.options[index];
                     
-                    // Highlight correct answer, grey out incorrect ones
                     if (index === question.correct) {
                         optionElement.classList.add('correct');
                     } else {
@@ -842,110 +658,85 @@
                     }
                 }
             });
-        }
-
-        // Update dynamic bar chart with animation
-        function updateDynamicBarChart(stats) {
-            const maxCount = Math.max(...stats);
-            const minHeight = 20;  // Minimum height in pixels
-            const maxHeight = 160; // Maximum height in pixels
             
-            ['a', 'b', 'c', 'd'].forEach((letter, index) => {
-                const count = stats[index];
-                const statCount = document.getElementById(`stat-count-${letter}`);
-                const barChart = document.getElementById(`stat-bar-chart-${letter}`);
-                
-                if (statCount && barChart) {
-                    // Update count text
-                    statCount.textContent = count;
-                    
-                    // Calculate proportional height
-                    let barHeight;
-                    if (count === 0) {
-                        barHeight = minHeight;
-                        // Hide count for zero values
-                        statCount.style.opacity = '0';
-                    } else {
-                        // Proportional height between min and max
-                        const proportion = count / maxCount;
-                        barHeight = minHeight + (proportion * (maxHeight - minHeight));
-                        statCount.style.opacity = '1';
-                    }
-                    
-                    // Apply height with delay for staggered animation
-                    setTimeout(() => {
-                        barChart.style.height = `${barHeight}px`;
-                    }, index * 150); // 150ms delay between each bar
-                }
+            resultsScreen.classList.add('active');
+            
+            // Update quiz state for players
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'results',
+                currentQuestion: currentQuestionIndex
             });
         }
 
         // Show scoreboard screen
-        function showScoreboard() {
+        async function showScoreboard() {
             document.getElementById('quiz-results-screen').classList.remove('active');
             
             const scoreboardScreen = document.getElementById('scoreboard-screen');
             
             // Update quiz state for players
-            updateQuizState({
+            await GameDB.updateQuizState(currentGameCode, {
                 phase: 'scoreboard',
                 currentQuestion: currentQuestionIndex
             });
             
-            // Update player scores - now works with real player data
+            // Update player scores
             updatePlayerScores();
             
             scoreboardScreen.classList.add('active');
         }
 
-        // Update player scores - now works with real player data
-        function updatePlayerScores() {
-            const session = getGameSession(currentGameCode);
-            let playerScores = [];
-            
-            if (session.scores && session.players) {
-                // Get scores for all players who joined the game
-                playerScores = session.players.map(player => {
-                    return {
-                        name: player.name,
-                        score: session.scores[player.name] || 0
-                    };
-                }).sort((a, b) => b.score - a.score);
-            }
-            
-            const playerScoresContainer = document.getElementById('player-scores');
-            playerScoresContainer.innerHTML = '';
-            
-            if (playerScores.length === 0) {
-                playerScoresContainer.innerHTML = '<div class="no-scores">No player scores available</div>';
-                return;
-            }
-            
-            playerScores.forEach((player, index) => {
-                const scoreItem = document.createElement('div');
-                scoreItem.className = `score-item rank-${index + 1}`;
+        // Update player scores
+        async function updatePlayerScores() {
+            try {
+                const session = await GameDB.getGameSession(currentGameCode);
+                let playerScores = [];
                 
-                let medalIcon = '';
-                if (index === 0) {
-                    medalIcon = '<img src="assets/medal_1.png" alt="Gold Medal" class="medal-icon">';
-                } else if (index === 1) {
-                    medalIcon = '<img src="assets/medal_2.png" alt="Silver Medal" class="medal-icon">';
-                } else if (index === 2) {
-                    medalIcon = '<img src="assets/medal_3.png" alt="Bronze Medal" class="medal-icon">';
+                if (session && session.players && session.scores) {
+                    playerScores = session.players.map(player => {
+                        return {
+                            name: player.name,
+                            score: session.scores[player.name] || 0
+                        };
+                    }).sort((a, b) => b.score - a.score);
                 }
                 
-                scoreItem.innerHTML = `
-                    ${medalIcon}
-                    <span class="player-name">${player.name}</span>
-                    <span class="player-score">${player.score}</span>
-                `;
+                const playerScoresContainer = document.getElementById('player-scores');
+                playerScoresContainer.innerHTML = '';
                 
-                playerScoresContainer.appendChild(scoreItem);
-            });
+                if (playerScores.length === 0) {
+                    playerScoresContainer.innerHTML = '<div class="no-scores">No player scores available</div>';
+                    return;
+                }
+                
+                playerScores.forEach((player, index) => {
+                    const scoreItem = document.createElement('div');
+                    scoreItem.className = `score-item rank-${index + 1}`;
+                    
+                    let medalIcon = '';
+                    if (index === 0) {
+                        medalIcon = '<img src="assets/medal_1.png" alt="Gold Medal" class="medal-icon">';
+                    } else if (index === 1) {
+                        medalIcon = '<img src="assets/medal_2.png" alt="Silver Medal" class="medal-icon">';
+                    } else if (index === 2) {
+                        medalIcon = '<img src="assets/medal_3.png" alt="Bronze Medal" class="medal-icon">';
+                    }
+                    
+                    scoreItem.innerHTML = `
+                        ${medalIcon}
+                        <span class="player-name">${player.name}</span>
+                        <span class="player-score">${player.score}</span>
+                    `;
+                    
+                    playerScoresContainer.appendChild(scoreItem);
+                });
+            } catch (error) {
+                console.error('Error updating player scores:', error);
+            }
         }
 
         // Proceed to next question
-        function proceedToNextQuestion() {
+        async function proceedToNextQuestion() {
             document.getElementById('scoreboard-screen').classList.remove('active');
             
             currentQuestionIndex++;
@@ -960,13 +751,13 @@
         }
 
         // Show final leaderboard with celebration
-        function showFinalLeaderboard() {
+        async function showFinalLeaderboard() {
             document.getElementById('scoreboard-screen').classList.remove('active');
             
             const finalScreen = document.getElementById('final-leaderboard-screen');
             
             // Update quiz state for players
-            updateQuizState({
+            await GameDB.updateQuizState(currentGameCode, {
                 phase: 'final-results'
             });
             
@@ -975,11 +766,11 @@
             // Start confetti animation
             createConfetti();
             
-            // Update final scores (could be dynamic in real implementation)
+            // Update final scores
             updateFinalPodium();
         }
 
-                // Create confetti animation using canvas-confetti library
+        // Create confetti animation
         function createConfetti() {
             const duration = 15000; // 15 seconds
             const animationEnd = Date.now() + duration;
@@ -1010,63 +801,66 @@
             }, 250);
         }
 
-        // Update final podium with top 3 players - now works with real player data
-        function updateFinalPodium() {
-            const session = getGameSession(currentGameCode);
-            let finalScores = [];
-            
-            if (session.scores && session.players) {
-                // Get scores for all players who joined the game
-                finalScores = session.players.map(player => {
-                    return {
-                        name: player.name,
-                        score: session.scores[player.name] || 0
-                    };
-                }).sort((a, b) => b.score - a.score).slice(0, 3);
-            }
-            
-            // Default empty podium if no players
-            const defaultPlayers = [
-                { name: '-', score: 0 },
-                { name: '-', score: 0 },
-                { name: '-', score: 0 }
-            ];
-            
-            // Fill missing positions with default values
-            while (finalScores.length < 3) {
-                finalScores.push(defaultPlayers[finalScores.length]);
-            }
-            
-            // Update winner (1st place)
-            const firstPlace = document.querySelector('.first-place');
-            if (firstPlace) {
-                firstPlace.querySelector('.podium-name').textContent = finalScores[0].name;
-                firstPlace.querySelector('.podium-score').textContent = finalScores[0].score;
-            }
-            
-            // Update 2nd place
-            const secondPlace = document.querySelector('.second-place');
-            if (secondPlace) {
-                secondPlace.querySelector('.podium-name').textContent = finalScores[1].name;
-                secondPlace.querySelector('.podium-score').textContent = finalScores[1].score;
-            }
-            
-            // Update 3rd place
-            const thirdPlace = document.querySelector('.third-place');
-            if (thirdPlace) {
-                thirdPlace.querySelector('.podium-name').textContent = finalScores[2].name;
-                thirdPlace.querySelector('.podium-score').textContent = finalScores[2].score;
+        // Update final podium with top 3 players
+        async function updateFinalPodium() {
+            try {
+                const session = await GameDB.getGameSession(currentGameCode);
+                let finalScores = [];
+                
+                if (session && session.players && session.scores) {
+                    finalScores = session.players.map(player => {
+                        return {
+                            name: player.name,
+                            score: session.scores[player.name] || 0
+                        };
+                    }).sort((a, b) => b.score - a.score).slice(0, 3);
+                }
+                
+                // Default empty podium if no players
+                const defaultPlayers = [
+                    { name: '-', score: 0 },
+                    { name: '-', score: 0 },
+                    { name: '-', score: 0 }
+                ];
+                
+                // Fill missing positions with default values
+                while (finalScores.length < 3) {
+                    finalScores.push(defaultPlayers[finalScores.length]);
+                }
+                
+                // Update winner (1st place)
+                const firstPlace = document.querySelector('.first-place');
+                if (firstPlace) {
+                    firstPlace.querySelector('.podium-name').textContent = finalScores[0].name;
+                    firstPlace.querySelector('.podium-score').textContent = finalScores[0].score;
+                }
+                
+                // Update 2nd place
+                const secondPlace = document.querySelector('.second-place');
+                if (secondPlace) {
+                    secondPlace.querySelector('.podium-name').textContent = finalScores[1].name;
+                    secondPlace.querySelector('.podium-score').textContent = finalScores[1].score;
+                }
+                
+                // Update 3rd place
+                const thirdPlace = document.querySelector('.third-place');
+                if (thirdPlace) {
+                    thirdPlace.querySelector('.podium-name').textContent = finalScores[2].name;
+                    thirdPlace.querySelector('.podium-score').textContent = finalScores[2].score;
+                }
+            } catch (error) {
+                console.error('Error updating final podium:', error);
             }
         }
 
         // Play again function
-        function playAgain() {
+        async function playAgain() {
             document.getElementById('final-leaderboard-screen').classList.remove('active');
             resetToWaitingRoom();
         }
 
         // Reset back to waiting room
-        function resetToWaitingRoom() {
+        async function resetToWaitingRoom() {
             document.querySelectorAll('.quiz-screen').forEach(screen => {
                 screen.classList.remove('active');
             });
@@ -1078,23 +872,26 @@
             currentQuestionIndex = 0;
             
             // Clear player scores from session
-            const session = getGameSession(currentGameCode);
-            if (session.scores) {
-                delete session.scores;
-                localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
+            try {
+                await GameDB.updateGameSession(currentGameCode, {
+                    scores: {},
+                    status: 'waiting'
+                });
+            } catch (error) {
+                console.error('Error resetting game session:', error);
             }
             
             updateStartButton();
         }
 
         // Initialize the game
-        function initializeGame() {
-            generateGameCode();
+        async function initializeGame() {
+            await generateGameCode();
             updatePlayersDisplay();
             updatePlayerCount();
             updateStartButton();
             
-            // Start listening for players joining from localStorage
+            // Start listening for players joining
             startPlayerListener();
         }
 
@@ -1107,32 +904,13 @@
             }
         });
 
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            cleanupSubscriptions();
+        });
+
         // Initialize when page loads
         window.addEventListener('load', initializeGame);
-
-        // Update quiz state in localStorage for player synchronization
-        function updateQuizState(quizState) {
-            const session = getGameSession(currentGameCode);
-            session.quizState = quizState;
-            session.lastUpdated = new Date().toISOString();
-            localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
-            
-            // Trigger storage event for player pages
-            window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
-                detail: { gameCode: currentGameCode, session: session }
-            }));
-        }
-
-        // Register service worker for PWA functionality
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(function(registration) {
-                    console.log('Service Worker registered successfully');
-                })
-                .catch(function(error) {
-                    console.log('Service Worker registration failed');
-                });
-        }
     </script>
 </body>
 </html> 
