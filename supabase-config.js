@@ -19,8 +19,6 @@ let quizStateSubscription = null;
 
 // Initialize real-time subscriptions for a game
 function initializeGameSubscriptions(gameCode) {
-    console.log('🔗 Setting up Supabase subscriptions for game:', gameCode); // Debug log
-    
     // Subscribe to game session changes
     gameSessionSubscription = window.supabaseClient
         .channel(`game_${gameCode}`)
@@ -48,9 +46,7 @@ function initializeGameSubscriptions(gameCode) {
                 handlePlayerUpdate(payload);
             }
         )
-        .subscribe((status) => {
-            console.log('📡 Game session subscription status:', status); // Debug log
-        });
+        .subscribe();
 
     // Subscribe to quiz state changes
     quizStateSubscription = window.supabaseClient
@@ -67,11 +63,7 @@ function initializeGameSubscriptions(gameCode) {
                 handleQuizStateUpdate(payload);
             }
         )
-        .subscribe((status) => {
-            console.log('🎮 Quiz state subscription status:', status); // Debug log
-        });
-    
-    console.log('✅ Supabase subscriptions initialized'); // Debug log
+        .subscribe();
 }
 
 // Clean up subscriptions
@@ -126,7 +118,6 @@ function handlePlayerUpdate(payload) {
 
 // Handle quiz state updates
 function handleQuizStateUpdate(payload) {
-    console.log('📡 Supabase quiz state change received:', payload); // Debug log
     const { eventType, new: newRecord } = payload;
     
     if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -137,8 +128,6 @@ function handleQuizStateUpdate(payload) {
             questionData: newRecord.question_data,
             lastUpdated: newRecord.updated_at
         };
-        
-        console.log('🚀 Dispatching quizStateUpdated event:', { gameCode: newRecord.game_code, quizState }); // Debug log
         
         window.dispatchEvent(new CustomEvent('quizStateUpdated', {
             detail: { gameCode: newRecord.game_code, quizState: quizState }
@@ -209,17 +198,13 @@ const GameDB = {
 
     // Add player to game
     async addPlayer(gameCode, player) {
-        // First, check if player already exists and remove any old entries
-        await this.removePlayerByName(gameCode, player.name);
-        
         const { data, error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
             .insert({
                 game_code: gameCode,
                 name: player.name,
                 player_id: player.id,
-                joined_at: new Date().toISOString(),
-                last_active: new Date().toISOString()
+                joined_at: new Date().toISOString()
             })
             .select()
             .single();
@@ -232,7 +217,7 @@ const GameDB = {
         return data;
     },
 
-    // Remove player from game by player ID
+    // Remove player from game
     async removePlayer(gameCode, playerId) {
         const { error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
@@ -243,50 +228,6 @@ const GameDB = {
         if (error) {
             console.error('Error removing player:', error);
             throw error;
-        }
-    },
-
-    // Remove player from game by name (for duplicate prevention)
-    async removePlayerByName(gameCode, playerName) {
-        const { error } = await window.supabaseClient
-            .from(TABLES.PLAYERS)
-            .delete()
-            .eq('game_code', gameCode)
-            .eq('name', playerName);
-            
-        if (error) {
-            console.error('Error removing player by name:', error);
-            // Don't throw error as this is cleanup
-        }
-    },
-
-    // Update player heartbeat
-    async updatePlayerHeartbeat(gameCode, playerId) {
-        const { error } = await window.supabaseClient
-            .from(TABLES.PLAYERS)
-            .update({
-                last_active: new Date().toISOString()
-            })
-            .eq('game_code', gameCode)
-            .eq('player_id', playerId);
-            
-        if (error) {
-            console.error('Error updating player heartbeat:', error);
-        }
-    },
-
-    // Clean up inactive players (remove players inactive for more than 5 seconds)
-    async cleanupInactivePlayers(gameCode) {
-        const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
-        
-        const { error } = await window.supabaseClient
-            .from(TABLES.PLAYERS)
-            .delete()
-            .eq('game_code', gameCode)
-            .lt('last_active', fiveSecondsAgo);
-            
-        if (error) {
-            console.error('Error cleaning up inactive players:', error);
         }
     },
 

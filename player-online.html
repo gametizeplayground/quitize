@@ -269,7 +269,6 @@
         let playerId = '';
         let currentScore = 0;
         let questionStartTime = 0;
-        let heartbeatInterval = null;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -309,30 +308,17 @@
 
         // Join the game
         async function joinGame() {
-            console.log('joinGame() called'); // Debug log
-            
             const nicknameInput = document.getElementById('nickname-input');
             const name = nicknameInput.value.trim();
-            
-            console.log('Player name:', name); // Debug log
             
             if (name.length < 2) {
                 showMessage('Please enter a valid name (at least 2 characters)', 'error');
                 return;
             }
 
-            // Disable the button to prevent double-clicks
-            const joinButton = document.getElementById('join-button');
-            if (joinButton) {
-                joinButton.disabled = true;
-                joinButton.textContent = 'Joining...';
-            }
-
             try {
                 playerName = name;
                 playerId = generatePlayerId();
-                
-                console.log('Adding player to game:', currentGameCode, playerId); // Debug log
                 
                 // Add player to game in Supabase
                 await GameDB.addPlayer(currentGameCode, {
@@ -340,33 +326,12 @@
                     name: playerName
                 });
                 
-                console.log('Player added successfully'); // Debug log
-                
-                // Start heartbeat to keep player presence alive
-                startHeartbeat();
-                
                 showScreen('waiting-room-screen');
                 updatePlayerDisplay();
-                
-                // Test that event listeners are working
-                console.log('🧪 Testing event listener setup...');
-                window.dispatchEvent(new CustomEvent('quizStateUpdated', {
-                    detail: { 
-                        gameCode: currentGameCode, 
-                        quizState: { phase: 'test', countdown: 0 } 
-                    }
-                }));
-                console.log('🧪 Test event dispatched');
                 
             } catch (error) {
                 console.error('Error joining game:', error);
                 showMessage('Error joining game. Please try again.', 'error');
-                
-                // Re-enable the button on error
-                if (joinButton) {
-                    joinButton.disabled = false;
-                    joinButton.textContent = 'JOIN TO THE GAME!';
-                }
             }
         }
 
@@ -375,74 +340,36 @@
             return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
-        // Start heartbeat to keep player presence alive
-        function startHeartbeat() {
-            // Send heartbeat every 5 seconds
-            heartbeatInterval = setInterval(async () => {
-                try {
-                    if (playerId && currentGameCode) {
-                        await GameDB.updatePlayerHeartbeat(currentGameCode, playerId);
-                    }
-                } catch (error) {
-                    console.error('Error sending heartbeat:', error);
-                }
-            }, 5000);
-        }
-
-        // Stop heartbeat
-        function stopHeartbeat() {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-        }
-
-        // Clean up player data
-        async function cleanupPlayer() {
-            stopHeartbeat();
-            if (playerId && currentGameCode) {
-                try {
-                    await GameDB.removePlayer(currentGameCode, playerId);
-                } catch (error) {
-                    console.error('Error removing player:', error);
-                }
-            }
-            cleanupSubscriptions();
-        }
-
         // Leave the room
-        function leaveRoom() {
-            cleanupPlayer().catch(console.error);
-            window.location.href = 'player-online.html';
+        async function leaveRoom() {
+            try {
+                if (playerId) {
+                    await GameDB.removePlayer(currentGameCode, playerId);
+                }
+                cleanupSubscriptions();
+                window.location.href = 'player-online.html';
+            } catch (error) {
+                console.error('Error leaving room:', error);
+            }
         }
 
         // Play again
         function playAgain() {
-            cleanupPlayer().catch(console.error);
+            cleanupSubscriptions();
             window.location.href = 'player-online.html';
         }
 
         // Show a specific screen
         function showScreen(screenId) {
-            console.log('🖥️ Switching to screen:', screenId); // Debug log
             document.querySelectorAll('.screen').forEach(screen => {
                 screen.classList.remove('active');
             });
             document.getElementById(screenId).classList.add('active');
-            console.log('✅ Screen switched. Active screen is now:', screenId); // Debug log
         }
 
         // Show message
         function showMessage(message, type = 'info') {
-            console.log('showMessage called:', message, type); // Debug log
-            
             const container = document.getElementById('message-container');
-            if (!container) {
-                console.error('message-container not found!');
-                alert(message); // Fallback to alert
-                return;
-            }
-            
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
             messageDiv.textContent = message;
@@ -521,14 +448,10 @@
 
         // Handle quiz state updates
         function handleQuizStateUpdate(payload) {
-            console.log('🎮 Player received quiz state update:', payload.detail); // Debug log
             const { quizState } = payload.detail;
-            
-            console.log('📱 Current screen before transition:', document.querySelector('.screen.active')?.id); // Debug log
             
             switch (quizState.phase) {
                 case 'countdown':
-                    console.log('⏱️ Transitioning to loading screen for countdown'); // Debug log
                     showScreen('loading-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
@@ -563,10 +486,6 @@
                     showScreen('final-results-screen');
                     document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
                     break;
-                    
-                case 'test':
-                    console.log('🧪 Test event received successfully! Event listeners are working.'); // Debug log
-                    break;
             }
         }
 
@@ -582,25 +501,12 @@
 
         // Initialize event listeners
         function initializeEventListeners() {
-            console.log('🎧 Setting up event listeners for quiz state updates'); // Debug log
             window.addEventListener('quizStateUpdated', handleQuizStateUpdate);
             window.addEventListener('gameSessionUpdated', handleGameSessionUpdate);
-            console.log('✅ Event listeners set up successfully'); // Debug log
         }
 
         // Initialize the game
         function initializeGame() {
-            console.log('Initializing game...'); // Debug log
-            
-            // Check if GameDB is available
-            if (typeof GameDB === 'undefined') {
-                console.error('GameDB not available! Make sure supabase-config.js is loaded.');
-                showMessage('Game initialization failed. Please refresh the page.', 'error');
-                return;
-            }
-            
-            console.log('GameDB available:', GameDB); // Debug log
-            
             // Check if game code is in URL
             const urlGameCode = getGameCodeFromURL();
             if (urlGameCode) {
@@ -613,25 +519,7 @@
 
         // Clean up on page unload
         window.addEventListener('beforeunload', function() {
-            // Don't use async in beforeunload - it can cause issues
-            stopHeartbeat();
-            if (playerId && currentGameCode) {
-                // Use non-blocking cleanup
-                GameDB.removePlayer(currentGameCode, playerId).catch(console.error);
-            }
             cleanupSubscriptions();
-        });
-
-        // Clean up on page visibility change (mobile-friendly)
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'hidden') {
-                // Stop heartbeat immediately when page is hidden
-                stopHeartbeat();
-                // The absence of heartbeat will cause cleanup within 15-23 seconds
-            } else if (document.visibilityState === 'visible' && playerId && currentGameCode) {
-                // Resume heartbeat when page becomes visible again
-                startHeartbeat();
-            }
         });
 
         // Initialize when page loads
@@ -649,12 +537,6 @@
             if (e.key === 'Enter') {
                 joinGame();
             }
-        });
-
-        // Add click event listener as backup (in case onclick doesn't work)
-        document.getElementById('join-button').addEventListener('click', function(e) {
-            console.log('Join button clicked via event listener'); // Debug log
-            joinGame();
         });
     </script>
 </body>

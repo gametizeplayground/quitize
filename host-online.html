@@ -419,18 +419,6 @@
             }
         }
 
-        // Clean up inactive players
-        async function cleanupInactivePlayers() {
-            try {
-                if (currentGameCode) {
-                    await GameDB.cleanupInactivePlayers(currentGameCode);
-                    console.log('Cleaned up inactive players');
-                }
-            } catch (error) {
-                console.error('Error cleaning up inactive players:', error);
-            }
-        }
-
         // Listen for player changes
         function startPlayerListener() {
             // Listen for custom events from Supabase subscriptions
@@ -516,8 +504,6 @@
 
         // Show quiz countdown screen
         async function showQuizCountdown() {
-            console.log('Starting quiz countdown...'); // Debug log
-            
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
             
@@ -526,31 +512,21 @@
             countdownElement.textContent = countdown;
             
             // Update quiz state for players immediately
-            try {
-                await GameDB.updateQuizState(currentGameCode, {
-                    phase: 'countdown',
-                    countdown: countdown
-                });
-                console.log('Initial countdown quiz state updated'); // Debug log
-            } catch (error) {
-                console.error('Error updating initial quiz state:', error);
-            }
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'countdown',
+                countdown: countdown
+            });
             
-            const countdownInterval = setInterval(() => {
+            const countdownInterval = setInterval(async () => {
                 countdown--;
-                console.log('Countdown:', countdown); // Debug log
-                
                 if (countdown > 0) {
                     countdownElement.textContent = countdown;
-                    // Update countdown for players (non-blocking)
-                    GameDB.updateQuizState(currentGameCode, {
+                    // Update countdown for players
+                    await GameDB.updateQuizState(currentGameCode, {
                         phase: 'countdown',
                         countdown: countdown
-                    }).catch(error => {
-                        console.error('Error updating countdown:', error);
                     });
                 } else {
-                    console.log('Countdown finished, moving to question preview'); // Debug log
                     clearInterval(countdownInterval);
                     countdownScreen.classList.remove('active');
                     showQuestionPreview();
@@ -924,8 +900,6 @@
             startPlayerListener();
             // Periodic refresh for player list (fallback for real-time)
             setInterval(updatePlayerListFromSession, 3000);
-            // Periodic cleanup of inactive players
-            setInterval(() => cleanupInactivePlayers(), 3000);
         }
 
         // Handle keyboard shortcuts
