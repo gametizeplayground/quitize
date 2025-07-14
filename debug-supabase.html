@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Debug Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #2a2a2a; }
+        button { padding: 10px 15px; margin: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        pre { background: #1a1a1a; padding: 10px; overflow: auto; border: 1px solid #555; }
+        input { padding: 8px; margin: 5px; background: #333; color: white; border: 1px solid #555; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Supabase Debug Tool</h1>
+
+    <div class="section">
+        <h3>1. Connection Test</h3>
+        <button onclick="testConnection()">Test Supabase Connection</button>
+        <pre id="connection-result"></pre>
+    </div>
+
+    <div class="section">
+        <h3>2. Database Structure</h3>
+        <button onclick="checkTableStructure()">Check game_sessions Table</button>
+        <pre id="table-structure"></pre>
+    </div>
+
+    <div class="section">
+        <h3>3. Create Test Game</h3>
+        <input type="text" id="test-game-code" placeholder="Enter game code (e.g., 123456)" value="123456">
+        <button onclick="createTestGame()">Create Test Game</button>
+        <pre id="create-result"></pre>
+    </div>
+
+    <div class="section">
+        <h3>4. Add Test Player</h3>
+        <input type="text" id="test-player-name" placeholder="Enter player name" value="TestPlayer">
+        <button onclick="addTestPlayer()">Add Test Player</button>
+        <pre id="player-result"></pre>
+    </div>
+
+    <div class="section">
+        <h3>5. View All Games</h3>
+        <button onclick="viewAllGames()">View All Game Sessions</button>
+        <pre id="all-games"></pre>
+    </div>
+
+    <div class="section">
+        <h3>6. Real-time Test</h3>
+        <input type="text" id="realtime-game-code" placeholder="Game code to monitor" value="123456">
+        <button onclick="startRealtimeTest()">Start Real-time Monitoring</button>
+        <button onclick="stopRealtimeTest()">Stop Monitoring</button>
+        <pre id="realtime-log"></pre>
+    </div>
+
+    <div class="section">
+        <h3>7. Clear Test Data</h3>
+        <button onclick="clearTestData()">Clear All Test Games</button>
+        <pre id="clear-result"></pre>
+    </div>
+
+    <script>
+        let realtimeSubscription = null;
+        
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.textContent += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        async function testConnection() {
+            log('connection-result', 'Testing Supabase connection...');
+            try {
+                const { data, error } = await supabase.from('game_sessions').select('count').limit(1);
+                if (error) {
+                    log('connection-result', `❌ Connection failed: ${error.message}`);
+                } else {
+                    log('connection-result', '✅ Connection successful!');
+                    log('connection-result', `Response: ${JSON.stringify(data)}`);
+                }
+            } catch (err) {
+                log('connection-result', `❌ Error: ${err.message}`);
+            }
+        }
+
+        async function checkTableStructure() {
+            log('table-structure', 'Checking table structure...');
+            try {
+                const { data, error } = await supabase.from('game_sessions').select('*').limit(1);
+                if (error) {
+                    log('table-structure', `❌ Error: ${error.message}`);
+                } else {
+                    log('table-structure', '✅ Table exists!');
+                    log('table-structure', `Sample structure: ${JSON.stringify(data, null, 2)}`);
+                }
+            } catch (err) {
+                log('table-structure', `❌ Error: ${err.message}`);
+            }
+        }
+
+        async function createTestGame() {
+            const gameCode = document.getElementById('test-game-code').value;
+            log('create-result', `Creating test game with code: ${gameCode}`);
+            
+            try {
+                const testSession = {
+                    gameCode: gameCode,
+                    players: [],
+                    scores: {},
+                    state: 'waiting',
+                    createdAt: new Date().toISOString()
+                };
+                
+                const result = await saveGameSession(gameCode, testSession);
+                log('create-result', `✅ Game created successfully: ${result}`);
+                
+                // Verify it was saved
+                const retrieved = await getGameSession(gameCode);
+                log('create-result', `Retrieved data: ${JSON.stringify(retrieved, null, 2)}`);
+                
+            } catch (err) {
+                log('create-result', `❌ Error: ${err.message}`);
+            }
+        }
+
+        async function addTestPlayer() {
+            const gameCode = document.getElementById('test-game-code').value;
+            const playerName = document.getElementById('test-player-name').value;
+            log('player-result', `Adding player "${playerName}" to game ${gameCode}`);
+            
+            try {
+                // Get current session
+                let session = await getGameSession(gameCode);
+                log('player-result', `Current session: ${JSON.stringify(session, null, 2)}`);
+                
+                if (!session.players) session.players = [];
+                
+                // Add player
+                session.players.push({
+                    name: playerName,
+                    id: Date.now(),
+                    joinTime: new Date().toISOString(),
+                    status: 'ready'
+                });
+                
+                // Save updated session
+                const result = await saveGameSession(gameCode, session);
+                log('player-result', `✅ Player added successfully: ${result}`);
+                
+                // Verify
+                const updated = await getGameSession(gameCode);
+                log('player-result', `Updated session: ${JSON.stringify(updated, null, 2)}`);
+                
+            } catch (err) {
+                log('player-result', `❌ Error: ${err.message}`);
+            }
+        }
+
+        async function viewAllGames() {
+            log('all-games', 'Fetching all game sessions...');
+            try {
+                const { data, error } = await supabase.from('game_sessions').select('*');
+                if (error) {
+                    log('all-games', `❌ Error: ${error.message}`);
+                } else {
+                    log('all-games', `✅ Found ${data.length} game sessions:`);
+                    log('all-games', JSON.stringify(data, null, 2));
+                }
+            } catch (err) {
+                log('all-games', `❌ Error: ${err.message}`);
+            }
+        }
+
+        function startRealtimeTest() {
+            const gameCode = document.getElementById('realtime-game-code').value;
+            log('realtime-log', `Starting real-time monitoring for game: ${gameCode}`);
+            
+            try {
+                realtimeSubscription = GameDatabase.subscribeToGameSession(gameCode, (data) => {
+                    log('realtime-log', `📡 Real-time update received:`);
+                    log('realtime-log', JSON.stringify(data, null, 2));
+                });
+                log('realtime-log', '✅ Real-time monitoring started');
+            } catch (err) {
+                log('realtime-log', `❌ Error: ${err.message}`);
+            }
+        }
+
+        function stopRealtimeTest() {
+            if (realtimeSubscription) {
+                GameDatabase.unsubscribeFromGameSession(realtimeSubscription);
+                realtimeSubscription = null;
+                log('realtime-log', '⏹️ Real-time monitoring stopped');
+            }
+        }
+
+        async function clearTestData() {
+            log('clear-result', 'Clearing test data...');
+            try {
+                const { data, error } = await supabase
+                    .from('game_sessions')
+                    .delete()
+                    .in('game_code', ['123456', '654321', 'TEST']);
+                    
+                if (error) {
+                    log('clear-result', `❌ Error: ${error.message}`);
+                } else {
+                    log('clear-result', '✅ Test data cleared');
+                }
+            } catch (err) {
+                log('clear-result', `❌ Error: ${err.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 

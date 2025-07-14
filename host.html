@@ -50,6 +50,11 @@
         <span id="player-count">0</span> players
     </div>
 
+    <!-- Debug refresh button - top right -->
+    <button class="refresh-button" onclick="manualRefreshPlayers()">
+        Refresh
+    </button>
+
     <!-- Quiz Countdown Screen -->
     <div class="quiz-screen" id="quiz-countdown-screen">
         <div class="quiz-header">
@@ -1108,6 +1113,18 @@
                     await updatePlayerListFromSession();
                 }
             }, 3000);
+        }
+
+        // Manual refresh function for debugging
+        async function manualRefreshPlayers() {
+            console.log('Manual refresh triggered');
+            try {
+                await updatePlayerListFromSession();
+                console.log('Manual refresh completed');
+            } catch (error) {
+                console.error('Error during manual refresh:', error);
+                alert('Error refreshing players: ' + error.message);
+            }
         }
 
         // Handle keyboard shortcuts

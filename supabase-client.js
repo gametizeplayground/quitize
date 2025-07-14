@@ -111,22 +111,50 @@ class GameDatabase {
 
 // Helper functions that replace localStorage usage
 async function getGameSession(code) {
-  return await GameDatabase.getGameSession(code);
+  console.log(`Getting game session for code: ${code}`);
+  const result = await GameDatabase.getGameSession(code);
+  console.log(`Retrieved session:`, result);
+  return result;
 }
 
 async function saveGameSession(code, sessionData) {
-  return await GameDatabase.saveGameSession(code, sessionData);
+  console.log(`Saving game session for code: ${code}`, sessionData);
+  const result = await GameDatabase.saveGameSession(code, sessionData);
+  console.log(`Save result: ${result}`);
+  return result;
 }
 
 // Real-time subscription management
 let gameSubscription = null;
 
 function startGameStateListener(code, callback) {
+  console.log(`Starting game state listener for: ${code}`);
+  
   if (gameSubscription) {
+    console.log('Stopping existing subscription...');
     GameDatabase.unsubscribeFromGameSession(gameSubscription);
   }
   
-  gameSubscription = GameDatabase.subscribeToGameSession(code, callback);
+  // Add a small delay to ensure proper cleanup
+  setTimeout(() => {
+    console.log('Setting up new subscription...');
+    gameSubscription = GameDatabase.subscribeToGameSession(code, callback);
+    
+    // Test the subscription after a short delay
+    setTimeout(async () => {
+      console.log('Testing if real-time is working by fetching initial data...');
+      try {
+        const currentData = await GameDatabase.getGameSession(code);
+        console.log('Initial data for real-time test:', currentData);
+        if (currentData && Object.keys(currentData).length > 0) {
+          console.log('Calling callback with initial data...');
+          callback(currentData);
+        }
+      } catch (error) {
+        console.error('Error testing real-time subscription:', error);
+      }
+    }, 1000);
+  }, 100);
 }
 
 function stopGameStateListener() {
