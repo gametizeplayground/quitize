@@ -230,8 +230,9 @@ const GameDB = {
         console.log('Testing real-time connection for game:', gameCode);
         try {
             // Make a simple update to test if subscriptions are working
+            // Only update the updated_at timestamp which exists
             await this.updateGameSession(gameCode, {
-                test_timestamp: new Date().toISOString()
+                updated_at: new Date().toISOString()
             });
             console.log('Connection test update sent');
             return true;
@@ -284,21 +285,31 @@ const GameDB = {
 
     // Update game session
     async updateGameSession(gameCode, updates) {
+        console.log('Updating game session:', gameCode, 'with updates:', updates);
+        
+        const updateData = {
+            ...updates,
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('Final update data:', updateData);
+        
         const { data, error } = await window.supabaseClient
             .from(TABLES.GAME_SESSIONS)
-            .update({
-                ...updates,
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('game_code', gameCode)
             .select()
             .single();
             
         if (error) {
-            console.error('Error updating game session:', error);
+            console.error('❌ Database update error:', error);
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
+            console.error('Error details:', error.details);
             throw error;
         }
         
+        console.log('✅ Game session updated successfully:', data);
         return data;
     },
 

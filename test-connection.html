@@ -103,7 +103,7 @@
                 log(`Sending test update to game: ${currentTestGameCode}`);
                 await GameDB.updateGameSession(currentTestGameCode, {
                     status: 'started',
-                    test_timestamp: new Date().toISOString()
+                    updated_at: new Date().toISOString()
                 });
                 log('Test update sent successfully', 'success');
                 setStatus('updateStatus', 'Test update sent!', 'success');

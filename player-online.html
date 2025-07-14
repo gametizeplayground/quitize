@@ -300,11 +300,7 @@
                 // Initialize real-time subscriptions
                 initializeGameSubscriptions(code);
                 
-                // Test connection after a short delay
-                setTimeout(async () => {
-                    console.log('Testing real-time connection...');
-                    await GameDB.testConnection(code);
-                }, 2000);
+                console.log('✅ Real-time subscriptions initialized for game:', code);
                 
             } catch (error) {
                 console.error('Error checking game:', error);
@@ -344,6 +340,27 @@
                 GameDB.getGameSession(currentGameCode).then(session => {
                     console.log('Current game session:', session);
                 });
+                
+                // Add manual check every 2 seconds for testing
+                const manualChecker = setInterval(async () => {
+                    try {
+                        const currentSession = await GameDB.getGameSession(currentGameCode);
+                        console.log('📋 Manual check - Current session status:', currentSession?.status);
+                        
+                        if (currentSession?.status === 'started') {
+                            console.log('🚀 Manual check detected game started!');
+                            clearInterval(manualChecker);
+                            
+                            // Manually trigger the game start
+                            showScreen('countdown-screen');
+                            updatePlayerDisplay();
+                            const leaveBtn = document.querySelector('.leave-room-btn');
+                            if (leaveBtn) leaveBtn.style.display = 'none';
+                        }
+                    } catch (error) {
+                        console.error('Manual check error:', error);
+                    }
+                }, 2000);
                 
             } catch (error) {
                 console.error('Error joining game:', error);
