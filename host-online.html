@@ -919,7 +919,7 @@
             // Periodic refresh for player list (fallback for real-time)
             setInterval(updatePlayerListFromSession, 3000);
             // Periodic cleanup of inactive players
-            setInterval(() => cleanupInactivePlayers(), 8000);
+            setInterval(() => cleanupInactivePlayers(), 3000);
         }
 
         // Handle keyboard shortcuts

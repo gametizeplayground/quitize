@@ -264,15 +264,15 @@ const GameDB = {
         }
     },
 
-    // Clean up inactive players (remove players inactive for more than 15 seconds)
+    // Clean up inactive players (remove players inactive for more than 5 seconds)
     async cleanupInactivePlayers(gameCode) {
-        const fifteenSecondsAgo = new Date(Date.now() - 15000).toISOString();
+        const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
         
         const { error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
             .delete()
             .eq('game_code', gameCode)
-            .lt('last_active', fifteenSecondsAgo);
+            .lt('last_active', fiveSecondsAgo);
             
         if (error) {
             console.error('Error cleaning up inactive players:', error);
