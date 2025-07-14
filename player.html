@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quitize - Join Game</title>
+    <link rel="stylesheet" href="playerstyles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="assets/logo.png" alt="Quitize Logo" class="logo">
+        </div>
+
+        <!-- Game Code Entry Screen -->
+    <div class="screen active" id="game-code-screen">
+            <div class="main-content">
+                <div class="mascot-container">
+                    <div class="mascot">
+                        <img src="assets/mascot.png" alt="Mascot" style="width: 200px; height: 200px;" />
+            </div>
+        </div>
+
+                <h1 class="welcome-text">Let's Play!</h1>
+
+                <div class="form-container">
+                    <input 
+                        type="text" 
+                        class="input-field" 
+                        id="game-code-input" 
+                        placeholder="Game Key"
+                        maxlength="8"
+                        autocomplete="off"
+                    >
+                    <button class="enter-button" id="enter-button" onclick="enterGameCode()">
+                        Enter
+                    </button>
+    </div>
+
+
+
+                <!-- Messages -->
+                <div id="message-container"></div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-text">
+                Create your own game for FREE at quitize.com
+            </div>
+            <div class="footer-links">
+                <a href="#" class="footer-link">Terms</a>
+                <a href="#" class="footer-link">Privacy</a>
+                <a href="#" class="footer-link">Cookie Notice</a>
+            </div>
+        </div>
+    </div>
+
+        <!-- Nickname Entry Screen -->
+        <div class="screen" id="nickname-screen">
+            <div class="main-content">
+                <div class="mascot-container">
+                    <div class="mascot">
+                        <img src="assets/mascot2.png" alt="Mascot" style="width: 150px; height: 200px;" />
+                    </div>
+                </div>
+
+                <h1 class="welcome-text">What's your name?</h1>
+
+                <div class="form-container">
+                    <input 
+                        type="text" 
+                        class="input-field" 
+                        id="nickname-input" 
+                        placeholder="Enter your name"
+                        maxlength="20"
+                        autocomplete="off"
+                    >
+                    <button class="join-button" id="join-button" onclick="joinGame()">
+                        Join to the game!
+                    </button>
+                </div>
+
+                <!-- Messages -->
+                <div id="nickname-message-container"></div>
+            </div>
+            
+            <div class="footer">
+                <div class="footer-text">
+                    Create your own game for FREE at quitize.com
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                    <a href="#" class="footer-link">Cookie Notice</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waiting Room Screen -->
+        <div class="screen" id="waiting-room-screen">
+            <div class="main-content">
+                <div class="mascot-container">
+                    <div class="mascot">
+                        <img src="assets/mascot3.png" alt="Mascot">
+                    </div>
+                </div>
+                
+                <h1 class="welcome-text">Welcome!<br><span id="player-name-display">Player</span></h1>
+                <p class="welcome-subtitle">Spot your name on the screen?</p>
+                
+                <div class="form-container">
+                    <!-- Button will be positioned independently for desktop, but here for mobile -->
+                    <button class="leave-room-btn" onclick="leaveRoom()">
+                        Leave the room
+                    </button>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div class="footer-text">
+                    Create your own game for FREE at quitize.com
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                    <a href="#" class="footer-link">Cookie Notice</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div class="screen" id="loading-screen">
+            <div class="loading-screen-content">
+                <h1 class="loading-title">Loading...</h1>
+            </div>
+            
+            <div class="player-info">
+                <span id="player-name-loading">Player</span>
+                <div class="player-score" id="player-score-loading">0</div>
+            </div>
+            
+            <div class="footer">
+                <div class="footer-text">
+                    Create your own game for FREE at quitize.com
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                    <a href="#" class="footer-link">Cookie Notice</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Countdown Screen -->
+        <div class="screen" id="countdown-screen">
+            <div class="countdown-screen-content">
+                <h1 class="quiz-title">Quiz 1</h1>
+                <div class="countdown-number" id="countdown-display">5</div>
+                <div class="countdown-mascot">
+                    <img src="assets/getready_mascot.png" alt="Get Ready Mascot">
+                </div>
+            </div>
+
+            <div class="player-info">
+                <span id="player-name-info">Player</span>
+                <div class="player-score" id="player-score-info">0</div>
+            </div>
+            
+            <div class="footer">
+                <div class="footer-text">
+                    Create your own game for FREE at quitize.com
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                    <a href="#" class="footer-link">Cookie Notice</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Screen -->
+        <div class="screen" id="question-screen">
+            <div class="question-screen-content">
+                <h1 class="quiz-title">Quiz 1</h1>
+                
+                <div class="question-options">
+                    <button class="option-button option-a" onclick="selectAnswer('A')">
+                        A
+                    </button>
+                    <button class="option-button option-b" onclick="selectAnswer('B')">
+                        B
+                    </button>
+                    <button class="option-button option-c" onclick="selectAnswer('C')">
+                        C
+                    </button>
+                    <button class="option-button option-d" onclick="selectAnswer('D')">
+                        D
+                    </button>
+                </div>
+            </div>
+
+            <div class="player-info">
+                <span id="player-name-question">Player</span>
+                <div class="player-score" id="player-score-question">0</div>
+            </div>
+            
+            <div class="footer">
+                <div class="footer-text">
+                    Create your own game for FREE at quitize.com
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                    <a href="#" class="footer-link">Cookie Notice</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Result Screen -->
+        <div class="screen" id="quiz-result-screen">
+            <div class="quiz-result-content">
+                <h1 class="result-title" id="result-title">Result</h1>
+                
+                <div class="result-icon" id="result-icon">
+                    <span id="result-icon-symbol">?</span>
+                </div>
+                
+                <div class="result-points" id="result-points">0</div>
+            </div>
+
+            <div class="player-info">
+                <span id="player-name-result">Player</span>
+                <div class="player-score" id="player-score-result">0</div>
+            </div>
+            
+            <div class="footer">
+                <div class="footer-text">
+                    Create your own game for FREE at quitize.com
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Terms</a>
+                    <a href="#" class="footer-link">Privacy</a>
+                    <a href="#" class="footer-link">Cookie Notice</a>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        let gameCode = '';
+        let playerName = '';
+        let currentScreen = 'game-code-screen';
+        let isLoading = false;
+        let questionStartTime = null;
+        let answerSubmitted = false;
+
+        // Auto-focus on input when page loads
+        window.addEventListener('load', function() {
+            document.getElementById('game-code-input').focus();
+        });
+
+        // TEMPORARY: Shortcut to countdown screen with working countdown (Shift+C)
+        document.addEventListener('keydown', function(e) {
+            if (e.shiftKey && e.key === 'C') {
+                e.preventDefault(); // Prevent any default behavior
+                
+                // Only allow shortcut if player has actually joined a game
+                if (gameCode && playerName) {
+                    // Go to countdown screen and start countdown
+                    showScreen('countdown-screen');
+                    updatePlayerInfo();
+                    startCountdown();
+                    
+                    console.log('🚀 Quick jump to countdown screen with working countdown! (Shift+C shortcut)');
+                } else {
+                    console.log('⚠️ Cannot use shortcut - no game code or player name set');
+                }
+            }
+        });
+
+        // Show screen function
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            currentScreen = screenId;
+        }
+
+        // Handle input formatting for game code
+        const gameCodeInput = document.getElementById('game-code-input');
+        gameCodeInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s/g, '').toUpperCase();
+            
+            // Format with space after 3 characters
+            if (value.length > 3) {
+                value = value.slice(0, 3) + ' ' + value.slice(3, 7);
+            }
+            
+            e.target.value = value;
+            
+            // Update button state
+            updateButtonState();
+        });
+
+        // Handle Enter key for game code
+        gameCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !isLoading) {
+                enterGameCode();
+            }
+        });
+
+        // Handle nickname input
+        const nicknameInput = document.getElementById('nickname-input');
+        nicknameInput.addEventListener('input', function(e) {
+            updateJoinButtonState();
+        });
+
+        nicknameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !isLoading) {
+                joinGame();
+            }
+        });
+
+        // Update button state based on input
+        function updateButtonState() {
+            const input = document.getElementById('game-code-input');
+            const button = document.getElementById('enter-button');
+            const cleanValue = input.value.replace(/\s/g, '');
+            
+            if (cleanValue.length >= 4) {
+                button.disabled = false;
+                button.style.opacity = '1';
+            } else {
+                button.disabled = true;
+                button.style.opacity = '0.6';
+            }
+        }
+
+        // Update join button state
+        function updateJoinButtonState() {
+            const input = document.getElementById('nickname-input');
+            const button = document.getElementById('join-button');
+            const value = input.value.trim();
+            
+            if (value.length >= 2) {
+                button.disabled = false;
+                button.style.opacity = '1';
+            } else {
+                button.disabled = true;
+                button.style.opacity = '0.6';
+            }
+        }
+
+        // Enter game code function
+        function enterGameCode() {
+            if (isLoading) return;
+            
+            const input = document.getElementById('game-code-input');
+            const cleanCode = input.value.replace(/\s/g, '');
+            
+            if (cleanCode.length < 4) {
+                showMessage('Please enter a valid game code', 'error');
+                return;
+            }
+            
+            gameCode = cleanCode;
+            showLoading(true);
+            
+            // Simulate API call
+            setTimeout(() => {
+                // Check if game code is valid (mock validation)
+                if (validateGameCode(gameCode)) {
+                    // Direct transition to nickname screen without message
+                    showLoading(false);
+                    showScreen('nickname-screen');
+                    setTimeout(() => {
+                        document.getElementById('nickname-input').focus();
+                    }, 100);
+                } else {
+                    showLoading(false);
+                    showMessage('Game not found. Please check your code.', 'error');
+                    input.focus();
+                }
+            }, 1000);
+        }
+
+        // Join game function
+        function joinGame() {
+            if (isLoading) return;
+            
+            const input = document.getElementById('nickname-input');
+            const name = input.value.trim();
+            
+            if (name.length < 2) {
+                showNicknameMessage('Please enter a valid name (at least 2 characters)', 'error');
+                return;
+            }
+            
+            playerName = name;
+            showNicknameLoading(true);
+            
+            // Simulate joining game
+            setTimeout(() => {
+                showNicknameLoading(false);
+                
+                // Add player to the game session
+                addPlayerToGame(gameCode, playerName);
+                
+                document.getElementById('player-name-display').textContent = playerName;
+                showScreen('waiting-room-screen');
+                
+                // Start listening for game state changes
+                startGameStateListener();
+            }, 1000);
+        }
+
+        // Leave room function
+        function leaveRoom() {
+            if (confirm('Are you sure you want to leave the room?')) {
+                // Remove player from game session
+                removePlayerFromGame(gameCode, playerName);
+                
+                // Stop listening for game state changes
+                stopGameStateListener();
+                
+                showScreen('game-code-screen');
+                // Reset form values
+                document.getElementById('game-code-input').value = '';
+                document.getElementById('nickname-input').value = '';
+                gameCode = '';
+                playerName = '';
+                    setTimeout(() => {
+                    document.getElementById('game-code-input').focus();
+                }, 100);
+            }
+        }
+
+        // Game session management functions
+        function addPlayerToGame(code, name) {
+            let gameSession = JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
+            
+            if (!gameSession.players) {
+                gameSession.players = [];
+            }
+            
+            // Check if player already exists
+            const existingPlayerIndex = gameSession.players.findIndex(p => p.name === name);
+            if (existingPlayerIndex === -1) {
+                gameSession.players.push({
+                    name: name,
+                    id: Date.now() + Math.random(),
+                    joinTime: new Date().toISOString(),
+                    status: 'ready'
+                });
+            }
+            
+            // Set game state if not exists
+            if (!gameSession.state) {
+                gameSession.state = 'waiting';
+            }
+            
+            localStorage.setItem(`game_${code}`, JSON.stringify(gameSession));
+            
+            // Trigger storage event for host page
+            window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
+                detail: { gameCode: code, session: gameSession }
+            }));
+        }
+
+        function removePlayerFromGame(code, name) {
+            let gameSession = JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
+            
+            if (gameSession.players) {
+                gameSession.players = gameSession.players.filter(p => p.name !== name);
+                localStorage.setItem(`game_${code}`, JSON.stringify(gameSession));
+                
+                // Trigger storage event for host page
+                window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
+                    detail: { gameCode: code, session: gameSession }
+                }));
+            }
+        }
+
+        async function getGameSession(code) {
+            return await GameDatabase.getGameSession(code);
+        }
+
+        // Game state listener
+        let gameStateInterval;
+
+        function startGameStateListener() {
+            // Check for game state changes every 500ms
+            gameStateInterval = setInterval(() => {
+                const session = getGameSession(gameCode);
+                
+                if (session.state === 'started') {
+                    // Game has been started by host
+                    stopGameStateListener();
+                    startQuizGame();
+                } else if (session.state === 'ended') {
+                    // Game has ended
+                    stopGameStateListener();
+                    endQuizGame();
+                }
+                    }, 500);
+            
+            // Also listen for storage events
+            window.addEventListener('storage', handleStorageChange);
+        }
+
+        function stopGameStateListener() {
+            if (gameStateInterval) {
+                clearInterval(gameStateInterval);
+                gameStateInterval = null;
+            }
+            window.removeEventListener('storage', handleStorageChange);
+        }
+
+        function handleStorageChange(e) {
+            if (e.key === `game_${gameCode}`) {
+                const session = JSON.parse(e.newValue || '{}');
+                
+                if (session.state === 'started') {
+                    stopGameStateListener();
+                    startQuizGame();
+                } else if (session.state === 'ended') {
+                    stopGameStateListener();
+                    endQuizGame();
+                }
+            }
+        }
+
+        function startQuizGame() {
+            // Show countdown screen immediately when game starts
+            // The host will send countdown state that will be handled by quiz state listener
+            showScreen('countdown-screen');
+            updatePlayerInfo();
+            
+            // Initialize quiz title (will be updated by quiz state changes)
+            const session = getGameSession(gameCode);
+            const currentQuestionIndex = session.currentQuestion || 0;
+            updateQuizTitle(currentQuestionIndex);
+            
+            // Hide leave room button during game
+            const leaveBtn = document.querySelector('.leave-room-btn');
+            if (leaveBtn) leaveBtn.style.display = 'none';
+            
+            // Start listening for detailed game state changes
+            startQuizStateListener();
+        }
+
+        function endQuizGame() {
+            // Handle game end
+            showScreen('game-code-screen');
+            // Reset form values
+            document.getElementById('game-code-input').value = '';
+            document.getElementById('nickname-input').value = '';
+            gameCode = '';
+            playerName = '';
+        }
+
+        // Quiz state listener for detailed game phases
+        let quizStateInterval;
+        let currentPlayerScore = 0;
+
+        function startQuizStateListener() {
+            // Update player info displays
+            updatePlayerInfo();
+            
+            // Check for quiz state changes every 200ms for responsiveness
+            quizStateInterval = setInterval(() => {
+                const session = getGameSession(gameCode);
+                
+                if (session.quizState) {
+                    handleQuizStateChange(session.quizState);
+                }
+            }, 200);
+        }
+
+        function stopQuizStateListener() {
+            if (quizStateInterval) {
+                clearInterval(quizStateInterval);
+                quizStateInterval = null;
+            }
+        }
+
+        function updateQuizTitle(questionIndex) {
+            const quizNumber = (questionIndex || 0) + 1;
+            const quizTitle = `Quiz ${quizNumber}`;
+            
+            // Update countdown screen title
+            const countdownTitle = document.querySelector('#countdown-screen .quiz-title');
+            if (countdownTitle) {
+                countdownTitle.textContent = quizTitle;
+            }
+            
+            // Update question screen title
+            const questionTitle = document.querySelector('#question-screen .quiz-title');
+            if (questionTitle) {
+                questionTitle.textContent = quizTitle;
+            }
+        }
+
+        function handleQuizStateChange(quizState) {
+            // Store the current question index in the session for consistency
+            const session = getGameSession(gameCode);
+            if (quizState.currentQuestion !== undefined) {
+                session.currentQuestion = quizState.currentQuestion;
+                // Update quiz title when question changes
+                updateQuizTitle(quizState.currentQuestion);
+            }
+            if (quizState.questionData) {
+                session.quizState = quizState;
+            }
+            localStorage.setItem(`game_${gameCode}`, JSON.stringify(session));
+            
+            switch (quizState.phase) {
+                case 'countdown':
+                    // Show countdown screen immediately when host starts countdown
+                    if (currentScreen !== 'countdown-screen') {
+                        showScreen('countdown-screen');
+                        updatePlayerInfo(); // Update player name and score
+                    }
+                    updateCountdown(quizState.countdown || 5);
+                    answerSubmitted = false;
+                    break;
+                    
+                case 'question-preview':
+                    // Continue showing countdown screen during question preview
+                    if (currentScreen !== 'countdown-screen') {
+                        showScreen('countdown-screen');
+                        updatePlayerInfo();
+                    }
+                    updateCountdown(quizState.countdown || 5);
+                    answerSubmitted = false;
+                    break;
+                    
+                case 'live-question':
+                    // Switch to question screen when host shows live question
+                    // But don't switch back if player has already submitted answer
+                    if (currentScreen !== 'question-screen' && !answerSubmitted) {
+                        showScreen('question-screen');
+                        clearOptionSelections();
+                        updatePlayerInfo();
+                        // Record question start time
+                        questionStartTime = Date.now();
+                        answerSubmitted = false;
+                    }
+                    break;
+                    
+                case 'results':
+                    showPlayerResult();
+                    break;
+                    
+                case 'scoreboard':
+                    // Keep players on quiz result screen when host shows scoreboard
+                    // Don't switch away from current screen during scoreboard phase
+                    if (currentScreen === 'quiz-result-screen' || currentScreen === 'player-result-screen') {
+                        // Player should remain on result screen during scoreboard
+                        // Do nothing - stay on current result screen
+                    }
+                    break;
+                    
+                case 'final-results':
+                    // Show final ranking before ending
+                    showFinalRanking();
+                    break;
+            }
+        }
+
+        function showPlayerResult() {
+            const session = getGameSession(gameCode);
+            let result = session.resultState && session.resultState[playerName];
+            
+            // If no result exists yet, calculate it based on the player's answer
+            if (!result) {
+                const playerAnswers = (session.playerAnswers && session.playerAnswers[session.currentQuestion || 0]) || {};
+                const playerAnswer = playerAnswers[playerName];
+                const questionData = session.quizState && session.quizState.questionData;
+                
+                if (playerAnswer && questionData) {
+                    // Fix: Compare answer indices instead of comparing letters to text
+                    const playerAnswerIndex = ['A', 'B', 'C', 'D'].indexOf(playerAnswer.answer);
+                    const isCorrect = playerAnswerIndex === questionData.correct;
+                    let points = 0;
+                    
+                    if (isCorrect) {
+                        // Kahoot scoring formula: Score = (1 - (TimeTaken / QuestionTimeLimit)) × 500 + 500
+                        const questionTimeLimit = 20000; // 20 seconds in milliseconds
+                        const timeTaken = Math.min(playerAnswer.timeTaken, questionTimeLimit); // Cap at time limit
+                        points = Math.round((1 - (timeTaken / questionTimeLimit)) * 500 + 500);
+                        // Ensure points are within valid range (500-1000)
+                        points = Math.max(500, Math.min(1000, points));
+                    }
+                    
+                    result = {
+                        correct: isCorrect,
+                        points: points,
+                        total: currentPlayerScore + points
+                    };
+                    
+                    // Update current player score
+                    currentPlayerScore = result.total;
+                    
+                    // Store the result in session for consistency
+                    if (!session.resultState) session.resultState = {};
+                    session.resultState[playerName] = result;
+                    localStorage.setItem(`game_${gameCode}`, JSON.stringify(session));
+                }
+            }
+            
+            if (!result) return;
+            
+            // Use the proper quiz result screen we created
+            const isCorrect = result.correct;
+            const points = result.points;
+            
+            // Update result elements in the static quiz result screen
+            document.getElementById('result-title').textContent = isCorrect ? 'Correct' : 'Wrong';
+            document.getElementById('result-icon-symbol').textContent = isCorrect ? '✓' : '✗';
+            document.getElementById('result-points').textContent = isCorrect ? `+${points}` : '0';
+            
+            // Update result icon class
+            const resultIcon = document.getElementById('result-icon');
+            resultIcon.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
+            
+            // Update player score
+            currentPlayerScore = result.total;
+            
+            // Show the proper quiz result screen
+            showScreen('quiz-result-screen');
+            updatePlayerInfo();
+        }
+
+        function showFinalRanking() {
+            const session = getGameSession(gameCode);
+            if (!session.scores) return;
+            
+            // Calculate final rankings
+            const finalScores = Object.entries(session.scores)
+                .map(([name, score]) => ({ name, score }))
+                .sort((a, b) => b.score - a.score);
+            
+            // Find current player's ranking
+            const playerRank = finalScores.findIndex(p => p.name === playerName) + 1;
+            const playerScore = session.scores[playerName] || 0;
+            
+            // Build final ranking screen
+            let html = `<div class="header">`;
+            html += `<img src="assets/logo.png" alt="Quitize Logo" class="logo">`;
+            html += `</div>`;
+            html += `<div class='final-ranking-screen'>`;
+            html += `<h1 class='final-player-name'>${playerName}</h1>`;
+            html += `<div class='final-points-display'>- ${playerScore} points -</div>`;
+            
+            // Show ranking badge based on position
+            if (playerRank <= 3) {
+                const rankClasses = ['first', 'second', 'third'];
+                const rankClass = rankClasses[playerRank - 1];
+                html += `<div class='ranking-badge ${rankClass}'>`;
+                html += `<span class='ranking-number'>${playerRank}</span>`;
+                html += `</div>`;
+                
+                // Add medal images for 1st, 2nd, 3rd places
+                const medalImages = ['assets/medal_1.png', 'assets/medal_2.png', 'assets/medal_3.png'];
+                html += `<div class='final-medal'><img src='${medalImages[playerRank - 1]}' alt='Medal' class='medal-image'></div>`;
+            } else {
+                html += `<div class='ranking-badge other'>`;
+                html += `<span class='ranking-number'>${playerRank}</span>`;
+                html += `</div>`;
+                html += `<div class='final-message'>Good try!</div>`;
+            }
+            
+            html += `<button class='play-again-btn' onclick='playAgain()'>Play Again</button>`;
+            html += `</div>`;
+            html += `<div class='player-info'><span>${playerName}</span><div class='player-score'>${playerScore}</div></div>`;
+            
+            // Show final ranking screen
+            let finalScreen = document.getElementById('player-final-ranking-screen');
+            if (!finalScreen) {
+                finalScreen = document.createElement('div');
+                finalScreen.id = 'player-final-ranking-screen';
+                finalScreen.className = 'screen active';
+                document.body.appendChild(finalScreen);
+            }
+            
+            // Hide the main container and all other screens
+            document.querySelector('.container').style.display = 'none';
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            finalScreen.innerHTML = html;
+            finalScreen.classList.add('active');
+            
+            // Removed auto-redirect - player stays on leaderboard
+        }
+
+        // Play Again function
+        function playAgain() {
+            // Show the main container again
+            document.querySelector('.container').style.display = 'flex';
+            
+            // Hide final ranking screen
+            const finalScreen = document.getElementById('player-final-ranking-screen');
+            if (finalScreen) {
+                finalScreen.classList.remove('active');
+            }
+            
+            // Reset to game code screen
+            showScreen('game-code-screen');
+            
+            // Clear form values
+            document.getElementById('game-code-input').value = '';
+            document.getElementById('nickname-input').value = '';
+            
+            // Reset game state
+            gameCode = '';
+            playerName = '';
+            currentPlayerScore = 0;
+            answerSubmitted = false;
+            
+            // Stop any listeners
+            stopQuizStateListener();
+            stopGameStateListener();
+            
+            // Focus on game code input
+            setTimeout(() => {
+                document.getElementById('game-code-input').focus();
+            }, 100);
+        }
+
+        function updateCountdown(count) {
+            const countdownDisplay = document.getElementById('countdown-display');
+            if (countdownDisplay) {
+                countdownDisplay.textContent = count;
+            }
+        }
+
+        // Start countdown function
+        function startCountdown() {
+            let count = 5;
+            updateCountdown(count);
+            
+            // Initialize quiz title for shortcut testing
+            const session = getGameSession(gameCode);
+            const currentQuestionIndex = session.currentQuestion || 0;
+            updateQuizTitle(currentQuestionIndex);
+            
+            const countdownInterval = setInterval(() => {
+                count--;
+                updateCountdown(count);
+                
+                if (count <= 0) {
+                    clearInterval(countdownInterval);
+                    // When countdown reaches 0, go to question screen
+                    showScreen('question-screen');
+                    updatePlayerInfo();
+                    console.log('🚀 Countdown finished! Moving to question screen.');
+                }
+            }, 1000);
+        }
+
+        function updatePlayerInfo() {
+            // Update all player name displays
+            const nameElements = [
+                'player-name-display',
+                'player-name-info', 
+                'player-name-question',
+                'player-name-loading',
+                'player-name-result'
+            ];
+            
+            nameElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = playerName;
+                }
+            });
+            
+            // Update score displays
+            const scoreElements = [
+                'player-score-info',
+                'player-score-question',
+                'player-score-loading',
+                'player-score-result'
+            ];
+            
+            scoreElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = currentPlayerScore;
+                }
+            });
+            
+            // Update quiz title based on current question
+            const session = getGameSession(gameCode);
+            if (session.currentQuestion !== undefined) {
+                updateQuizTitle(session.currentQuestion);
+            }
+        }
+
+        function showMockQuizResult() {
+            // Show different result types for testing
+            const isCorrect = Math.random() > 0.5; // Random correct/wrong for testing
+            const points = isCorrect ? 5 : 0;
+            
+            // Update result elements
+            document.getElementById('result-title').textContent = isCorrect ? 'Correct' : 'Wrong';
+            document.getElementById('result-icon-symbol').textContent = isCorrect ? '✓' : '✗';
+            document.getElementById('result-points').textContent = isCorrect ? `+${points}` : '0';
+            
+            // Update result icon class
+            const resultIcon = document.getElementById('result-icon');
+            resultIcon.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
+            
+            // Update current player score
+            currentPlayerScore = isCorrect ? points : 0;
+            
+            // Show the result screen
+            showScreen('quiz-result-screen');
+        }
+
+        function selectAnswer(option) {
+            if (answerSubmitted) return;
+            answerSubmitted = true;
+            clearOptionSelections();
+            const selectedButton = document.querySelector(`.option-${option.toLowerCase()}`);
+            if (selectedButton) {
+                selectedButton.classList.add('selected');
+            }
+            // Record answer time and time taken
+            const answerTime = Date.now();
+            const timeTaken = questionStartTime ? (answerTime - questionStartTime) : 99999;
+            // Store player's answer and time in localStorage
+            const session = getGameSession(gameCode);
+            if (!session.playerAnswers) session.playerAnswers = {};
+            
+            // Get current question index from the session or use 0 as fallback
+            const currentQuestionIndex = session.currentQuestion || 0;
+            
+            if (!session.playerAnswers[currentQuestionIndex]) session.playerAnswers[currentQuestionIndex] = {};
+            session.playerAnswers[currentQuestionIndex][playerName] = { answer: option, timeTaken };
+            localStorage.setItem(`game_${gameCode}`, JSON.stringify(session));
+            // Show loading screen: waiting for other players
+            showScreen('loading-screen');
+            document.querySelector('.loading-title').textContent = 'Waiting for other players to answer...';
+            // Haptic feedback
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function clearOptionSelections() {
+            document.querySelectorAll('.option-button').forEach(button => {
+                button.classList.remove('selected');
+            });
+        }
+
+        // Game code validation using localStorage
+        function validateGameCode(code) {
+            // Check if there's an active game session with this code
+            const session = JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
+            return session.gameCode === code && session.state === 'waiting';
+        }
+
+        // Show loading state for game code
+        function showLoading(show) {
+            const button = document.getElementById('enter-button');
+            
+            isLoading = show;
+            
+            if (show) {
+                button.disabled = true;
+                button.textContent = 'CONNECTING...';
+                button.classList.add('loading');
+            } else {
+                button.disabled = false;
+                button.textContent = 'Enter';
+                button.classList.remove('loading');
+                updateButtonState();
+            }
+        }
+
+        // Show loading state for nickname
+        function showNicknameLoading(show) {
+            const button = document.getElementById('join-button');
+            
+            isLoading = show;
+            
+            if (show) {
+                button.disabled = true;
+                button.textContent = 'JOINING...';
+                button.classList.add('loading');
+            } else {
+                button.disabled = false;
+                button.textContent = 'Join to the game!';
+                button.classList.remove('loading');
+                updateJoinButtonState();
+            }
+        }
+
+        // Show message for game code screen
+        function showMessage(text, type) {
+            const container = document.getElementById('message-container');
+            
+            // Clear previous messages
+            container.innerHTML = '';
+            
+            // Create message element
+            const message = document.createElement('div');
+            message.className = type === 'error' ? 'error-message' : 'success-message';
+            message.textContent = text;
+            
+            container.appendChild(message);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.parentNode.removeChild(message);
+                }
+            }, 5000);
+        }
+
+        // Show message for nickname screen
+        function showNicknameMessage(text, type) {
+            const container = document.getElementById('nickname-message-container');
+            
+            // Clear previous messages
+            container.innerHTML = '';
+            
+            // Create message element
+            const message = document.createElement('div');
+            message.className = type === 'error' ? 'error-message' : 'success-message';
+            message.textContent = text;
+            
+            container.appendChild(message);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.parentNode.removeChild(message);
+                }
+            }, 5000);
+        }
+
+        // Initialize button states
+        updateButtonState();
+        
+        // Add interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize join button state
+            updateJoinButtonState();
+            
+            // Mascot click effect for nickname screen
+            const mascotImg = document.querySelector('#nickname-screen .mascot img');
+            if (mascotImg) {
+                mascotImg.addEventListener('click', function() {
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = 'scale(1)';
+                    }, 150);
+                });
+            }
+
+            // UFO click effect
+            const ufo = document.querySelector('.ufo');
+            if (ufo) {
+                ufo.addEventListener('click', function() {
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = 'scale(1)';
+                    }, 150);
+                });
+            }
+
+
+        });
+    </script>
+</body>
+</html> 
