@@ -17,6 +17,10 @@ const TABLES = {
 let gameSessionSubscription = null;
 let quizStateSubscription = null;
 
+// Expose subscriptions globally for debugging
+window.gameSessionSubscription = null;
+window.quizStateSubscription = null;
+
 // Initialize real-time subscriptions for a game
 function initializeGameSubscriptions(gameCode) {
     console.log('Initializing subscriptions for game:', gameCode);
@@ -51,6 +55,9 @@ function initializeGameSubscriptions(gameCode) {
         .subscribe((status) => {
             console.log('Game session subscription status:', status);
         });
+    
+    // Update global reference
+    window.gameSessionSubscription = gameSessionSubscription;
 
     // Subscribe to quiz state changes
     quizStateSubscription = window.supabaseClient
@@ -70,6 +77,9 @@ function initializeGameSubscriptions(gameCode) {
         .subscribe((status) => {
             console.log('Quiz state subscription status:', status);
         });
+    
+    // Update global reference  
+    window.quizStateSubscription = quizStateSubscription;
 }
 
 // Clean up subscriptions
@@ -138,12 +148,10 @@ function handleQuizStateUpdate(payload) {
             phase: newRecord.phase,
             currentQuestion: newRecord.current_question,
             questionData: newRecord.question_data,
-            countdown: newRecord.question_data?.countdown || newRecord.countdown,
-            timeLeft: newRecord.question_data?.timeLeft || newRecord.timeLeft,
+            countdown: newRecord.question_data?.countdown,
+            timeLeft: newRecord.question_data?.timeLeft,
             lastUpdated: newRecord.updated_at
         };
-        
-        console.log('🎯 Extracted quiz state with countdown:', quizState.countdown);
         
         console.log('Quiz state updated:', quizState);
         
