@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        .test-section { margin: 20px 0; padding: 20px; background: #333; border-radius: 8px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #4CAF50; }
+        .error { background: #f44336; }
+        .info { background: #2196F3; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; border: 1px solid #666; background: #222; color: #fff; }
+        #logs { background: #222; padding: 10px; height: 300px; overflow-y: auto; border: 1px solid #666; }
+    </style>
+</head>
+<body>
+    <h1>Quitize Real-time Connection Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Test Game Code</h3>
+        <input type="text" id="testGameCode" placeholder="Enter game code" value="123456">
+        <button onclick="testConnection()">Test Connection</button>
+        <div id="connectionStatus"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Test Game Session Update</h3>
+        <button onclick="sendTestUpdate()">Send Test Update</button>
+        <button onclick="startListening()">Start Listening</button>
+        <button onclick="stopListening()">Stop Listening</button>
+        <div id="updateStatus"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Real-time Logs</h3>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        let isListening = false;
+        let currentTestGameCode = '';
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.innerHTML = `[${timestamp}] ${message}`;
+            div.className = type;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+
+        function setStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function testConnection() {
+            const gameCode = document.getElementById('testGameCode').value.trim();
+            if (!gameCode) {
+                setStatus('connectionStatus', 'Please enter a game code', 'error');
+                return;
+            }
+
+            currentTestGameCode = gameCode;
+            log(`Testing connection for game code: ${gameCode}`);
+            
+            try {
+                // Test basic database connection
+                const session = await GameDB.getGameSession(gameCode);
+                log(`Game session retrieved: ${JSON.stringify(session)}`);
+                
+                if (session) {
+                    setStatus('connectionStatus', 'Game session found! Connection OK', 'success');
+                } else {
+                    setStatus('connectionStatus', 'Game session not found. Check game code.', 'error');
+                }
+                
+                // Test subscription setup
+                initializeGameSubscriptions(gameCode);
+                log('Subscriptions initialized');
+                
+            } catch (error) {
+                log(`Connection test failed: ${error.message}`, 'error');
+                setStatus('connectionStatus', `Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendTestUpdate() {
+            if (!currentTestGameCode) {
+                setStatus('updateStatus', 'Please test connection first', 'error');
+                return;
+            }
+
+            try {
+                log(`Sending test update to game: ${currentTestGameCode}`);
+                await GameDB.updateGameSession(currentTestGameCode, {
+                    status: 'started',
+                    test_timestamp: new Date().toISOString()
+                });
+                log('Test update sent successfully', 'success');
+                setStatus('updateStatus', 'Test update sent!', 'success');
+            } catch (error) {
+                log(`Failed to send update: ${error.message}`, 'error');
+                setStatus('updateStatus', `Update failed: ${error.message}`, 'error');
+            }
+        }
+
+        function startListening() {
+            if (!currentTestGameCode) {
+                setStatus('updateStatus', 'Please test connection first', 'error');
+                return;
+            }
+
+            if (isListening) {
+                log('Already listening');
+                return;
+            }
+
+            isListening = true;
+            log('Started listening for real-time updates');
+            
+            // Listen for game session updates
+            window.addEventListener('gameSessionUpdated', (event) => {
+                log(`📨 Game session update received: ${JSON.stringify(event.detail)}`, 'success');
+            });
+
+            // Listen for quiz state updates
+            window.addEventListener('quizStateUpdated', (event) => {
+                log(`📨 Quiz state update received: ${JSON.stringify(event.detail)}`, 'success');
+            });
+
+            initializeGameSubscriptions(currentTestGameCode);
+            setStatus('updateStatus', 'Listening for updates...', 'info');
+        }
+
+        function stopListening() {
+            isListening = false;
+            cleanupSubscriptions();
+            log('Stopped listening for updates');
+            setStatus('updateStatus', 'Stopped listening', 'info');
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        // Override console.log to capture all logs
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.join(' ');
+            if (message.includes('Game session updated') || 
+                message.includes('Quiz state updated') ||
+                message.includes('subscription status')) {
+                log(`🔍 ${message}`, 'info');
+            }
+        };
+
+        log('Connection test tool loaded. Enter a game code and click "Test Connection"');
+    </script>
+</body>
+</html> 

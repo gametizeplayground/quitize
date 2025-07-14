@@ -19,6 +19,8 @@ let quizStateSubscription = null;
 
 // Initialize real-time subscriptions for a game
 function initializeGameSubscriptions(gameCode) {
+    console.log('Initializing subscriptions for game:', gameCode);
+    
     // Subscribe to game session changes
     gameSessionSubscription = window.supabaseClient
         .channel(`game_${gameCode}`)
@@ -46,7 +48,9 @@ function initializeGameSubscriptions(gameCode) {
                 handlePlayerUpdate(payload);
             }
         )
-        .subscribe();
+        .subscribe((status) => {
+            console.log('Game session subscription status:', status);
+        });
 
     // Subscribe to quiz state changes
     quizStateSubscription = window.supabaseClient
@@ -63,7 +67,9 @@ function initializeGameSubscriptions(gameCode) {
                 handleQuizStateUpdate(payload);
             }
         )
-        .subscribe();
+        .subscribe((status) => {
+            console.log('Quiz state subscription status:', status);
+        });
 }
 
 // Clean up subscriptions
@@ -93,11 +99,14 @@ function handleGameSessionUpdate(payload) {
         };
         
         console.log('Game session updated:', gameSession);
+        console.log('Dispatching gameSessionUpdated event for game:', newRecord.game_code);
         
         // Trigger custom event for UI updates
-        window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
+        const event = new CustomEvent('gameSessionUpdated', {
             detail: { gameCode: newRecord.game_code, session: gameSession }
-        }));
+        });
+        window.dispatchEvent(event);
+        console.log('Event dispatched successfully');
     }
 }
 
@@ -214,6 +223,22 @@ const GameDB = {
         }
         
         return !!data;
+    },
+
+    // Test real-time connection
+    async testConnection(gameCode) {
+        console.log('Testing real-time connection for game:', gameCode);
+        try {
+            // Make a simple update to test if subscriptions are working
+            await this.updateGameSession(gameCode, {
+                test_timestamp: new Date().toISOString()
+            });
+            console.log('Connection test update sent');
+            return true;
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            return false;
+        }
     },
 
     // Clean up old games (older than 2 hours)
