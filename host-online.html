@@ -478,33 +478,29 @@
 
         // Start the game
         async function startGame() {
-            try {
-                const session = await GameDB.getGameSession(currentGameCode);
-                const totalPlayers = session && session.players ? session.players.length : players.length;
-                
-                if (totalPlayers === 0) {
-                    alert('No players have joined yet!');
-                    return;
-                }
+            // Fetch players from the players table
+            const playerRows = await fetchPlayersFromTable(currentGameCode);
+            const totalPlayers = playerRows.length;
 
-                gameStarted = true;
-                
-                // Update game state in Supabase
-                await GameDB.updateGameSession(currentGameCode, {
-                    status: 'started',
-                    startTime: new Date().toISOString()
-                });
-                
-                updateStartButton();
-                
-                // Hide main container and start quiz countdown
-                document.querySelector('.main-container').style.display = 'none';
-                document.querySelector('.header').style.display = 'none';
-                showQuizCountdown();
-            } catch (error) {
-                console.error('Error starting game:', error);
-                alert('Failed to start game. Please try again.');
+            if (totalPlayers === 0) {
+                alert('No players have joined yet!');
+                return;
             }
+
+            gameStarted = true;
+
+            // Update game state in Supabase
+            await GameDB.updateGameSession(currentGameCode, {
+                status: 'started',
+                startTime: new Date().toISOString()
+            });
+
+            updateStartButton();
+
+            // Hide main container and start quiz countdown
+            document.querySelector('.main-container').style.display = 'none';
+            document.querySelector('.header').style.display = 'none';
+            showQuizCountdown();
         }
 
         // Show quiz countdown screen
