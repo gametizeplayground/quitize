@@ -413,22 +413,34 @@
 
         // Listen for player changes using Supabase real-time
         function startPlayerListener() {
-            startGameStateListener(currentGameCode, (gameSession) => {
-                if (gameSession.players) {
+            console.log('Starting player listener for game code:', currentGameCode);
+            
+            startGameStateListener(currentGameCode, (gameSessionData) => {
+                console.log('Received real-time update:', gameSessionData);
+                
+                // Handle the data format from Supabase (check for different property names)
+                const gameSession = gameSessionData;
+                const playersArray = gameSession.players || [];
+                
+                if (playersArray && playersArray.length >= 0) {
                     // Get new player list
-                    const newPlayers = gameSession.players.map(p => p.name);
+                    const newPlayers = playersArray.map(p => p.name);
+                    console.log('New players:', newPlayers);
+                    console.log('Current players:', players);
                     
                     // Only update if there are actual changes
                     if (JSON.stringify(players) !== JSON.stringify(newPlayers)) {
                         players = newPlayers;
                         
                         // Update the player count and list
-                        const playerCount = gameSession.players.length;
+                        const playerCount = playersArray.length;
                         document.getElementById('player-count').textContent = playerCount;
                         
                         // Update the players display
                         updatePlayersDisplay();
                         updateStartButton();
+                        
+                        console.log('Updated player list. New count:', playerCount);
                     }
                 }
             });
@@ -1089,6 +1101,13 @@
             
             // Start listening for players joining from database
             startPlayerListener();
+            
+            // Also add a fallback polling mechanism every 3 seconds
+            setInterval(async () => {
+                if (currentGameCode) {
+                    await updatePlayerListFromSession();
+                }
+            }, 3000);
         }
 
         // Handle keyboard shortcuts

@@ -447,7 +447,9 @@
 
         // Game session management functions
         async function addPlayerToGame(code, name) {
+            console.log('Adding player to game:', code, name);
             let gameSession = await getGameSession(code);
+            console.log('Current game session:', gameSession);
             
             if (!gameSession.players) {
                 gameSession.players = [];
@@ -462,6 +464,9 @@
                     joinTime: new Date().toISOString(),
                     status: 'ready'
                 });
+                console.log('Added new player. Updated players array:', gameSession.players);
+            } else {
+                console.log('Player already exists in session');
             }
             
             // Set game state if not exists
@@ -469,7 +474,9 @@
                 gameSession.state = 'waiting';
             }
             
-            await saveGameSession(code, gameSession);
+            console.log('Saving updated game session...');
+            const saved = await saveGameSession(code, gameSession);
+            console.log('Game session saved successfully:', saved);
         }
 
         async function removePlayerFromGame(code, name) {

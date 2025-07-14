@@ -58,6 +58,8 @@ class GameDatabase {
   
   // Subscribe to real-time changes
   static subscribeToGameSession(code, callback) {
+    console.log('Setting up Supabase subscription for game code:', code);
+    
     const subscription = supabase
       .channel(`game_${code}`)
       .on('postgres_changes', {
@@ -66,11 +68,15 @@ class GameDatabase {
         table: 'game_sessions',
         filter: `game_code=eq.${code}`
       }, (payload) => {
+        console.log('Supabase real-time payload received:', payload);
         if (payload.new) {
+          console.log('Calling callback with payload.new:', payload.new);
           callback(payload.new);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Supabase subscription status:', status);
+      });
     
     return subscription;
   }
