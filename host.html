@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quitize - Host Dashboard</title>
     <link rel="stylesheet" href="hoststyles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4CAF50">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-client.js"></script>
 </head>
 <body>
     <div class="header">
@@ -49,11 +49,6 @@
     <div class="player-count-bottom">
         <span id="player-count">0</span> players
     </div>
-
-    <!-- Debug refresh button - top right -->
-    <button class="refresh-button" onclick="manualRefreshPlayers()">
-        Refresh
-    </button>
 
     <!-- Quiz Countdown Screen -->
     <div class="quiz-screen" id="quiz-countdown-screen">
@@ -267,15 +262,15 @@
         ];
 
         // Generate random game code
-        async function generateGameCode() {
+        function generateGameCode() {
             gameCode = Math.floor(100000 + Math.random() * 900000).toString();
             // Format with space for display
             const formattedCode = gameCode.slice(0, 3) + ' ' + gameCode.slice(3);
             document.getElementById('display-game-code').textContent = formattedCode;
             
-            // Initialize game session in database
+            // Initialize game session in localStorage
             currentGameCode = gameCode;
-            await initializeGameSession(gameCode);
+            initializeGameSession(gameCode);
             
             // Generate QR code for the game
             generateQRCode();
@@ -379,11 +374,11 @@
         }
 
         // Game session management functions
-        async function getGameSession(code) {
-            return await GameDatabase.getGameSession(code);
+        function getGameSession(code) {
+            return JSON.parse(localStorage.getItem(`game_${code}`) || '{}');
         }
 
-        async function initializeGameSession(code) {
+        function initializeGameSession(code) {
             const session = {
                 gameCode: code,
                 hostId: Date.now(),
@@ -391,12 +386,12 @@
                 state: 'waiting',
                 createdAt: new Date().toISOString()
             };
-            await saveGameSession(code, session);
+            localStorage.setItem(`game_${code}`, JSON.stringify(session));
             return session;
         }
 
-        async function updatePlayerListFromSession() {
-            const session = await getGameSession(currentGameCode);
+        function updatePlayerListFromSession() {
+            const session = getGameSession(currentGameCode);
             if (session.players) {
                 // Get new player list
                 const newPlayers = session.players.map(p => p.name);
@@ -416,48 +411,35 @@
             }
         }
 
-        // Listen for player changes using Supabase real-time
+        // Listen for player changes
         function startPlayerListener() {
-            console.log('Starting player listener for game code:', currentGameCode);
+            // Check for player changes every 3000ms (3 seconds)
+            setInterval(() => {
+                updatePlayerListFromSession();
+            }, 3000);
             
-            startGameStateListener(currentGameCode, (gameSessionData) => {
-                console.log('Received real-time update:', gameSessionData);
-                
-                // Handle the data format from Supabase (check for different property names)
-                const gameSession = gameSessionData;
-                const playersArray = gameSession.players || [];
-                
-                if (playersArray && playersArray.length >= 0) {
-                    // Get new player list
-                    const newPlayers = playersArray.map(p => p.name);
-                    console.log('New players:', newPlayers);
-                    console.log('Current players:', players);
-                    
-                    // Only update if there are actual changes
-                    if (JSON.stringify(players) !== JSON.stringify(newPlayers)) {
-                        players = newPlayers;
-                        
-                        // Update the player count and list
-                        const playerCount = playersArray.length;
-                        document.getElementById('player-count').textContent = playerCount;
-                        
-                        // Update the players display
-                        updatePlayersDisplay();
-                        updateStartButton();
-                        
-                        console.log('Updated player list. New count:', playerCount);
-                    }
+            // Also listen for storage events
+            window.addEventListener('storage', function(e) {
+                if (e.key === `game_${currentGameCode}`) {
+                    updatePlayerListFromSession();
+                }
+            });
+            
+            // Listen for custom events
+            window.addEventListener('gameSessionUpdated', function(e) {
+                if (e.detail.gameCode === currentGameCode) {
+                    updatePlayerListFromSession();
                 }
             });
         }
 
         // Add a player to the game
-        async function addPlayer(name) {
+        function addPlayer(name) {
             if (!players.includes(name)) {
                 players.push(name);
                 
-                // Also update the session in database
-                const session = await getGameSession(currentGameCode);
+                // Also update the session in localStorage
+                const session = getGameSession(currentGameCode);
                 if (!session.players) {
                     session.players = [];
                 }
@@ -469,7 +451,7 @@
                         name: name,
                         joinedAt: new Date().toISOString()
                     });
-                    await saveGameSession(currentGameCode, session);
+                    localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
                 }
                 
                 updatePlayersDisplay();
@@ -479,14 +461,14 @@
         }
 
         // Remove a player from the game
-        async function removePlayer(name) {
+        function removePlayer(name) {
             players = players.filter(player => player !== name);
             
-            // Also remove from session in database
-            const session = await getGameSession(currentGameCode);
+            // Also remove from session in localStorage
+            const session = getGameSession(currentGameCode);
             if (session.players) {
                 session.players = session.players.filter(p => p.name !== name);
-                await saveGameSession(currentGameCode, session);
+                localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
             }
             
             updatePlayersDisplay();
@@ -532,9 +514,9 @@
         }
 
         // Start the game
-        async function startGame() {
-            // Check for players from database first
-            const session = await getGameSession(currentGameCode);
+        function startGame() {
+            // Check for players from localStorage first
+            const session = getGameSession(currentGameCode);
             const totalPlayers = session.players ? session.players.length : players.length;
             
             if (totalPlayers === 0) {
@@ -544,11 +526,16 @@
 
             gameStarted = true;
             
-            // Update game state in database to notify players
+            // Update game state in localStorage to notify players
             if (session.players) {
                 session.state = 'started';
                 session.startTime = new Date().toISOString();
-                await saveGameSession(currentGameCode, session);
+                localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
+                
+                // Trigger storage event for player pages
+                window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
+                    detail: { gameCode: currentGameCode, session: session }
+                }));
             }
             
             updateStartButton();
@@ -556,11 +543,11 @@
             // Hide main container and start quiz countdown
             document.querySelector('.main-container').style.display = 'none';
             document.querySelector('.header').style.display = 'none';
-            await showQuizCountdown();
+            showQuizCountdown();
         }
 
         // Show quiz countdown screen
-        async function showQuizCountdown() {
+        function showQuizCountdown() {
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
             
@@ -569,24 +556,24 @@
             countdownElement.textContent = countdown;
             
             // Update quiz state for players immediately
-            await updateQuizState({
+            updateQuizState({
                 phase: 'countdown',
                 countdown: countdown
             });
             
-            const countdownInterval = setInterval(async () => {
+            const countdownInterval = setInterval(() => {
                 countdown--;
                 if (countdown > 0) {
                     countdownElement.textContent = countdown;
                     // Update countdown for players
-                    await updateQuizState({
+                    updateQuizState({
                         phase: 'countdown',
                         countdown: countdown
                     });
                 } else {
                     clearInterval(countdownInterval);
                     countdownScreen.classList.remove('active');
-                    await showQuestionPreview();
+                    showQuestionPreview();
                 }
             }, 1000);
         }
@@ -698,12 +685,12 @@
         }
 
         // Show quiz results screen
-        async function showQuizResults() {
+        function showQuizResults() {
             const resultsScreen = document.getElementById('quiz-results-screen');
             const question = quizQuestions[currentQuestionIndex];
 
             // --- KAHOOT SCORING LOGIC ---
-            const session = await getGameSession(currentGameCode);
+            const session = getGameSession(currentGameCode);
             const playerAnswers = (session.playerAnswers && session.playerAnswers[currentQuestionIndex]) || {};
             const questionTimeLimit = 20000; // 20 seconds in milliseconds
             const playerResults = {};
@@ -743,7 +730,7 @@
                     total: session.scores[name]
                 };
             });
-            await saveGameSession(currentGameCode, session);
+            localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
             // --- END KAHOOT SCORING LOGIC ---
 
             // Update quiz state for players
@@ -1070,13 +1057,13 @@
         }
 
         // Play again function
-        async function playAgain() {
+        function playAgain() {
             document.getElementById('final-leaderboard-screen').classList.remove('active');
-            await resetToWaitingRoom();
+            resetToWaitingRoom();
         }
 
         // Reset back to waiting room
-        async function resetToWaitingRoom() {
+        function resetToWaitingRoom() {
             document.querySelectorAll('.quiz-screen').forEach(screen => {
                 screen.classList.remove('active');
             });
@@ -1088,43 +1075,24 @@
             currentQuestionIndex = 0;
             
             // Clear player scores from session
-            const session = await getGameSession(currentGameCode);
+            const session = getGameSession(currentGameCode);
             if (session.scores) {
                 delete session.scores;
-                await saveGameSession(currentGameCode, session);
+                localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
             }
             
             updateStartButton();
         }
 
         // Initialize the game
-        async function initializeGame() {
-            await generateGameCode();
+        function initializeGame() {
+            generateGameCode();
             updatePlayersDisplay();
             updatePlayerCount();
             updateStartButton();
             
-            // Start listening for players joining from database
+            // Start listening for players joining from localStorage
             startPlayerListener();
-            
-            // Also add a fallback polling mechanism every 3 seconds
-            setInterval(async () => {
-                if (currentGameCode) {
-                    await updatePlayerListFromSession();
-                }
-            }, 3000);
-        }
-
-        // Manual refresh function for debugging
-        async function manualRefreshPlayers() {
-            console.log('Manual refresh triggered');
-            try {
-                await updatePlayerListFromSession();
-                console.log('Manual refresh completed');
-            } catch (error) {
-                console.error('Error during manual refresh:', error);
-                alert('Error refreshing players: ' + error.message);
-            }
         }
 
         // Handle keyboard shortcuts
@@ -1139,12 +1107,28 @@
         // Initialize when page loads
         window.addEventListener('load', initializeGame);
 
-        // Update quiz state in database for player synchronization
-        async function updateQuizState(quizState) {
-            const session = await getGameSession(currentGameCode);
+        // Update quiz state in localStorage for player synchronization
+        function updateQuizState(quizState) {
+            const session = getGameSession(currentGameCode);
             session.quizState = quizState;
             session.lastUpdated = new Date().toISOString();
-            await saveGameSession(currentGameCode, session);
+            localStorage.setItem(`game_${currentGameCode}`, JSON.stringify(session));
+            
+            // Trigger storage event for player pages
+            window.dispatchEvent(new CustomEvent('gameSessionUpdated', {
+                detail: { gameCode: currentGameCode, session: session }
+            }));
+        }
+
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('Service Worker registered successfully');
+                })
+                .catch(function(error) {
+                    console.log('Service Worker registration failed');
+                });
         }
     </script>
 </body>
