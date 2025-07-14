@@ -400,7 +400,9 @@
         // Update player list from Supabase
         async function updatePlayerListFromSession() {
             try {
+                console.log('Fetching players for game code:', currentGameCode);
                 const playerRows = await fetchPlayersFromTable(currentGameCode);
+                console.log('Fetched player rows:', playerRows);
                 const newPlayers = playerRows.map(p => p.name);
                 // Only update if there are actual changes
                 if (JSON.stringify(players) !== JSON.stringify(newPlayers)) {
