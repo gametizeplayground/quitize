@@ -506,12 +506,6 @@
                 status: 'started',
             });
 
-            // Immediately update quiz state so players leave waiting room
-            await GameDB.updateQuizState(currentGameCode, {
-                phase: 'countdown',
-                countdown: 5 // or your desired countdown start value
-            });
-
             updateStartButton();
 
             // Hide main container and start quiz countdown
@@ -522,6 +516,8 @@
 
         // Show quiz countdown screen
         async function showQuizCountdown() {
+            console.log('Starting quiz countdown...'); // Debug log
+            
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
             
@@ -530,21 +526,31 @@
             countdownElement.textContent = countdown;
             
             // Update quiz state for players immediately
-            await GameDB.updateQuizState(currentGameCode, {
-                phase: 'countdown',
-                countdown: countdown
-            });
+            try {
+                await GameDB.updateQuizState(currentGameCode, {
+                    phase: 'countdown',
+                    countdown: countdown
+                });
+                console.log('Initial countdown quiz state updated'); // Debug log
+            } catch (error) {
+                console.error('Error updating initial quiz state:', error);
+            }
             
-            const countdownInterval = setInterval(async () => {
+            const countdownInterval = setInterval(() => {
                 countdown--;
+                console.log('Countdown:', countdown); // Debug log
+                
                 if (countdown > 0) {
                     countdownElement.textContent = countdown;
-                    // Update countdown for players
-                    await GameDB.updateQuizState(currentGameCode, {
+                    // Update countdown for players (non-blocking)
+                    GameDB.updateQuizState(currentGameCode, {
                         phase: 'countdown',
                         countdown: countdown
+                    }).catch(error => {
+                        console.error('Error updating countdown:', error);
                     });
                 } else {
+                    console.log('Countdown finished, moving to question preview'); // Debug log
                     clearInterval(countdownInterval);
                     countdownScreen.classList.remove('active');
                     showQuestionPreview();
