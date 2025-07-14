@@ -139,6 +139,9 @@ function handleQuizStateUpdate(payload) {
 const GameDB = {
     // Create a new game session
     async createGameSession(gameCode) {
+        // First, clean up any existing game with this code
+        await this.cleanupExistingGame(gameCode);
+        
         const { data, error } = await window.supabaseClient
             .from(TABLES.GAME_SESSIONS)
             .insert({
@@ -158,6 +161,77 @@ const GameDB = {
         }
         
         return data;
+    },
+
+    // Clean up existing game data for a game code
+    async cleanupExistingGame(gameCode) {
+        try {
+            // Delete from all tables in correct order (due to foreign key constraints)
+            await window.supabaseClient
+                .from(TABLES.ANSWERS)
+                .delete()
+                .eq('game_code', gameCode);
+                
+            await window.supabaseClient
+                .from(TABLES.QUIZ_STATES)
+                .delete()
+                .eq('game_code', gameCode);
+                
+            await window.supabaseClient
+                .from(TABLES.PLAYERS)
+                .delete()
+                .eq('game_code', gameCode);
+                
+            await window.supabaseClient
+                .from(TABLES.GAME_SESSIONS)
+                .delete()
+                .eq('game_code', gameCode);
+                
+            console.log(`Cleaned up existing game data for code: ${gameCode}`);
+        } catch (error) {
+            console.warn('Error during cleanup (this is usually fine):', error);
+        }
+    },
+
+    // Check if a game code already exists
+    async gameCodeExists(gameCode) {
+        const { data, error } = await window.supabaseClient
+            .from(TABLES.GAME_SESSIONS)
+            .select('game_code')
+            .eq('game_code', gameCode)
+            .single();
+            
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+            console.error('Error checking game code:', error);
+            return false;
+        }
+        
+        return !!data;
+    },
+
+    // Clean up old games (older than 2 hours)
+    async cleanupOldGames() {
+        try {
+            const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+            
+            // Get old game codes first
+            const { data: oldGames } = await window.supabaseClient
+                .from(TABLES.GAME_SESSIONS)
+                .select('game_code')
+                .lt('updated_at', twoHoursAgo);
+                
+            if (oldGames && oldGames.length > 0) {
+                console.log(`Cleaning up ${oldGames.length} old games...`);
+                
+                for (const game of oldGames) {
+                    await this.cleanupExistingGame(game.game_code);
+                }
+                
+                console.log('Old games cleanup completed');
+            }
+        } catch (error) {
+            console.warn('Error during old games cleanup:', error);
+        }
     },
 
     // Get game session
@@ -256,18 +330,60 @@ const GameDB = {
 
     // Update quiz state
     async updateQuizState(gameCode, quizState) {
-        const { data, error } = await window.supabaseClient
+        const quizStateData = {
+            game_code: gameCode,
+            phase: quizState.phase,
+            current_question: quizState.currentQuestion,
+            question_data: quizState.questionData,
+            updated_at: new Date().toISOString()
+        };
+
+        // Try upsert first
+        let { data, error } = await window.supabaseClient
             .from(TABLES.QUIZ_STATES)
-            .upsert({
-                game_code: gameCode,
-                phase: quizState.phase,
-                current_question: quizState.currentQuestion,
-                question_data: quizState.questionData,
-                updated_at: new Date().toISOString()
+            .upsert(quizStateData, {
+                onConflict: 'game_code'
             })
             .select()
             .single();
             
+        // If upsert fails due to conflict, try update first then insert
+        if (error && error.code === '23505') { // Unique constraint violation
+            console.log('Quiz state conflict detected, attempting update...');
+            
+            // Try update first
+            const { data: updateData, error: updateError } = await window.supabaseClient
+                .from(TABLES.QUIZ_STATES)
+                .update(quizStateData)
+                .eq('game_code', gameCode)
+                .select()
+                .single();
+                
+            if (!updateError) {
+                return updateData;
+            }
+            
+            // If update fails, try delete then insert
+            console.log('Update failed, cleaning up and inserting...');
+            await window.supabaseClient
+                .from(TABLES.QUIZ_STATES)
+                .delete()
+                .eq('game_code', gameCode);
+                
+            const { data: insertData, error: insertError } = await window.supabaseClient
+                .from(TABLES.QUIZ_STATES)
+                .insert(quizStateData)
+                .select()
+                .single();
+                
+            if (insertError) {
+                console.error('Error inserting quiz state after cleanup:', insertError);
+                throw insertError;
+            }
+            
+            return insertData;
+        }
+        
         if (error) {
             console.error('Error updating quiz state:', error);
             throw error;

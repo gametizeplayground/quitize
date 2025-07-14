@@ -264,7 +264,30 @@
 
         // Generate random game code
         async function generateGameCode() {
-            gameCode = Math.floor(100000 + Math.random() * 900000).toString();
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            // Keep generating until we find a unique code
+            do {
+                gameCode = Math.floor(100000 + Math.random() * 900000).toString();
+                attempts++;
+                
+                if (attempts > maxAttempts) {
+                    alert('Unable to generate a unique game code. Please try again.');
+                    return;
+                }
+                
+                // Check if this code already exists
+                try {
+                    const exists = await GameDB.gameCodeExists(gameCode);
+                    if (!exists) break; // Found a unique code
+                    console.log(`Game code ${gameCode} already exists, generating new one...`);
+                } catch (error) {
+                    console.warn('Error checking game code existence:', error);
+                    break; // Continue with this code if check fails
+                }
+            } while (attempts <= maxAttempts);
+            
             // Format with space for display
             const formattedCode = gameCode.slice(0, 3) + ' ' + gameCode.slice(3);
             document.getElementById('display-game-code').textContent = formattedCode;
@@ -275,7 +298,7 @@
                 await GameDB.createGameSession(gameCode);
                 // Initialize real-time subscriptions
                 initializeGameSubscriptions(gameCode);
-                console.log('Game session created successfully');
+                console.log('Game session created successfully with code:', gameCode);
             } catch (error) {
                 console.error('Failed to create game session:', error);
                 alert('Failed to create game session. Please try again.');
@@ -478,28 +501,49 @@
 
         // Start the game
         async function startGame() {
-            // Fetch players from the players table
-            const playerRows = await fetchPlayersFromTable(currentGameCode);
-            const totalPlayers = playerRows.length;
+            try {
+                // Fetch players from the players table
+                const playerRows = await fetchPlayersFromTable(currentGameCode);
+                const totalPlayers = playerRows.length;
 
-            if (totalPlayers === 0) {
-                alert('No players have joined yet!');
-                return;
+                if (totalPlayers === 0) {
+                    alert('No players have joined yet!');
+                    return;
+                }
+
+                gameStarted = true;
+
+                // Update game state in Supabase with retry logic
+                let retries = 3;
+                while (retries > 0) {
+                    try {
+                        await GameDB.updateGameSession(currentGameCode, {
+                            status: 'started',
+                        });
+                        break; // Success, exit retry loop
+                    } catch (error) {
+                        retries--;
+                        console.warn(`Failed to update game session, retries left: ${retries}`, error);
+                        if (retries === 0) {
+                            throw error; // Re-throw if no retries left
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+                    }
+                }
+
+                updateStartButton();
+
+                // Hide main container and start quiz countdown
+                document.querySelector('.main-container').style.display = 'none';
+                document.querySelector('.header').style.display = 'none';
+                showQuizCountdown();
+                
+            } catch (error) {
+                console.error('Error starting game:', error);
+                gameStarted = false;
+                updateStartButton();
+                alert('Failed to start game. Please try again.');
             }
-
-            gameStarted = true;
-
-            // Update game state in Supabase
-            await GameDB.updateGameSession(currentGameCode, {
-                status: 'started',
-            });
-
-            updateStartButton();
-
-            // Hide main container and start quiz countdown
-            document.querySelector('.main-container').style.display = 'none';
-            document.querySelector('.header').style.display = 'none';
-            showQuizCountdown();
         }
 
         // Show quiz countdown screen
@@ -891,15 +935,23 @@
 
         // Initialize the game
         async function initializeGame() {
-            await generateGameCode();
-            updatePlayersDisplay();
-            updatePlayerCount();
-            updateStartButton();
-            
-            // Start listening for players joining
-            startPlayerListener();
-            // Periodic refresh for player list (fallback for real-time)
-            setInterval(updatePlayerListFromSession, 3000);
+            try {
+                // Clean up old games first
+                await GameDB.cleanupOldGames();
+                
+                await generateGameCode();
+                updatePlayersDisplay();
+                updatePlayerCount();
+                updateStartButton();
+                
+                // Start listening for players joining
+                startPlayerListener();
+                // Periodic refresh for player list (fallback for real-time)
+                setInterval(updatePlayerListFromSession, 3000);
+            } catch (error) {
+                console.error('Error during game initialization:', error);
+                alert('Failed to initialize game. Please refresh the page and try again.');
+            }
         }
 
         // Handle keyboard shortcuts
