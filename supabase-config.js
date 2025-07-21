@@ -175,6 +175,7 @@ const GameDB = {
                 players: [],
                 scores: {},
                 status: 'waiting',
+                start_time: null, // Add start_time field
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             })

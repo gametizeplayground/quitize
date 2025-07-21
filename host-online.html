@@ -552,10 +552,11 @@
 
                 updateStartButton();
 
-                // Hide main container and header, but do NOT start quiz countdown yet
+                // Hide main container and header, but do not start countdown yet
                 document.querySelector('.main-container').style.display = 'none';
                 document.querySelector('.header').style.display = 'none';
-                // Wait for the synchronized countdown handler to trigger
+                // The countdown will be triggered by the game session update event (status: 'starting')
+                // and will use the synchronized start_time
                 
             } catch (error) {
                 console.error('Error starting game:', error);
@@ -565,73 +566,38 @@
             }
         }
 
-        // Listen for game session updates for synchronized start
+        // Listen for game session updates to trigger synchronized countdown
         window.addEventListener('gameSessionUpdated', function(e) {
             const session = e.detail.session;
             if (session.status === 'starting' && session.start_time) {
                 // Synchronized countdown
-                const startTimestamp = new Date(session.start_time).getTime();
-                const now = Date.now();
-                const delay = Math.max(0, startTimestamp - now);
-                const countdownScreen = document.getElementById('quiz-countdown-screen');
-                countdownScreen.classList.add('active');
-                let countdown = Math.ceil(delay / 1000);
-                const countdownElement = document.getElementById('quiz-countdown');
-                countdownElement.textContent = countdown;
-                // Update quiz state for players immediately
-                GameDB.updateQuizState(currentGameCode, {
-                    phase: 'countdown',
-                    countdown: countdown
-                });
-                const interval = setInterval(() => {
-                    countdown--;
-                    if (countdown > 0) {
-                        countdownElement.textContent = countdown;
-                        GameDB.updateQuizState(currentGameCode, {
-                            phase: 'countdown',
-                            countdown: countdown
-                        });
-                    } else {
-                        clearInterval(interval);
-                        countdownScreen.classList.remove('active');
-                        // After countdown, update status to 'started' and proceed
-                        GameDB.updateGameSession(currentGameCode, { status: 'started' });
-                        showQuestionPreview();
-                    }
-                }, 1000);
+                showSynchronizedCountdown(session.start_time);
             }
         });
 
-        // Show quiz countdown screen
-        async function showQuizCountdown() {
+        // Synchronized countdown function
+        function showSynchronizedCountdown(startTimeISO) {
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
-            
             let countdown = 5;
             const countdownElement = document.getElementById('quiz-countdown');
             countdownElement.textContent = countdown;
-            
-            // Update quiz state for players immediately
-            await GameDB.updateQuizState(currentGameCode, {
-                phase: 'countdown',
-                countdown: countdown
-            });
-            
-            const countdownInterval = setInterval(async () => {
-                countdown--;
-                if (countdown > 0) {
-                    countdownElement.textContent = countdown;
-                    // Update countdown for players
-                    await GameDB.updateQuizState(currentGameCode, {
-                        phase: 'countdown',
-                        countdown: countdown
-                    });
-                } else {
-                    clearInterval(countdownInterval);
+            const startTimestamp = new Date(startTimeISO).getTime();
+            const now = Date.now();
+            let delay = Math.max(0, startTimestamp - now);
+            // Update countdown every second
+            const interval = setInterval(() => {
+                const now2 = Date.now();
+                const secondsLeft = Math.ceil((startTimestamp - now2) / 1000);
+                countdownElement.textContent = Math.max(0, secondsLeft);
+                if (secondsLeft <= 0) {
+                    clearInterval(interval);
                     countdownScreen.classList.remove('active');
+                    // After countdown, update status to 'started' and proceed
+                    GameDB.updateGameSession(currentGameCode, { status: 'started' });
                     showQuestionPreview();
                 }
-            }, 1000);
+            }, 250);
         }
 
         // Show question preview screen
