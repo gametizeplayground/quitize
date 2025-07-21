@@ -517,12 +517,13 @@
                 const startTime = Date.now() + 5000; // 5 seconds from now
                 let retries = 3;
                 let lastError = null;
+                let startTimeISO = new Date(startTime).toISOString();
                 while (retries > 0) {
                     try {
                         console.log('📡 Sending game start update to database (synchronized start)...');
                         const result = await GameDB.updateGameSession(currentGameCode, {
                             status: 'starting',
-                            start_time: new Date(startTime).toISOString()
+                            start_time: startTimeISO
                         });
                         console.log('✅ Game session updated successfully:', result);
                         break; // Success, exit retry loop
@@ -552,8 +553,8 @@
 
                 updateStartButton();
 
-                // DO NOT hide the main container and header here. Wait for the countdown to actually begin.
-                // The countdown and UI transition will be triggered by the gameSessionUpdated event.
+                // Immediately start the synchronized countdown for the host
+                showSynchronizedCountdown(startTimeISO);
                 
             } catch (error) {
                 console.error('Error starting game:', error);
@@ -564,14 +565,11 @@
         }
 
         // Register the gameSessionUpdated event listener at the top-level so it is always active
-        console.log('[Host] Registering gameSessionUpdated event listener');
         window.addEventListener('gameSessionUpdated', onHostGameSessionUpdated);
 
         function onHostGameSessionUpdated(e) {
             const session = e.detail.session;
-            console.log('[Host] gameSessionUpdated event received:', session);
             if (session.status === 'starting' && session.start_time) {
-                console.log('[Host] Detected status "starting" with start_time:', session.start_time);
                 showSynchronizedCountdown(session.start_time);
             }
         }
@@ -579,7 +577,6 @@
         // Synchronized countdown function (ensure only one countdown runs)
         let hostSynchronizedCountdownInterval = null;
         function showSynchronizedCountdown(startTimeISO) {
-            console.log('[Host] showSynchronizedCountdown called with startTimeISO:', startTimeISO);
             // Hide main container and header ONLY when countdown actually begins
             document.querySelector('.main-container').style.display = 'none';
             document.querySelector('.header').style.display = 'none';
@@ -603,7 +600,6 @@
                     clearInterval(hostSynchronizedCountdownInterval);
                     hostSynchronizedCountdownInterval = null;
                     countdownScreen.classList.remove('active');
-                    console.log('[Host] Countdown finished, updating status to started and showing question preview');
                     // After countdown, update status to 'started' and proceed
                     GameDB.updateGameSession(currentGameCode, { status: 'started' });
                     showQuestionPreview(); // This will show the title preview with countdown
@@ -611,16 +607,8 @@
             }, 250);
         }
 
-        // Helper to hide all quiz screens
-        function hideAllQuizScreens() {
-            document.querySelectorAll('.quiz-screen').forEach(screen => {
-                screen.classList.remove('active');
-            });
-        }
-
         // Show question preview screen
         async function showQuestionPreview() {
-            hideAllQuizScreens();
             const previewScreen = document.getElementById('question-preview-screen');
             const question = quizQuestions[currentQuestionIndex];
             
@@ -670,7 +658,6 @@
 
         // Show live question screen
         async function showLiveQuestion() {
-            hideAllQuizScreens();
             const liveScreen = document.getElementById('live-question-screen');
             const question = quizQuestions[currentQuestionIndex];
             
@@ -714,7 +701,6 @@
 
         // Show question results
         async function showQuestionResults() {
-            hideAllQuizScreens();
             const resultsScreen = document.getElementById('quiz-results-screen');
             const question = quizQuestions[currentQuestionIndex];
             
