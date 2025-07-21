@@ -733,6 +733,41 @@
         // Fallback: if stuck on preview screen, force transition after 6 seconds
         let previewFallbackTimeout = null;
 
+        // Fallback: if stuck on preview screen, poll quiz_states every 2s
+        let previewPollingInterval = null;
+
+        function startPreviewPolling() {
+            if (previewPollingInterval) return;
+            previewPollingInterval = setInterval(async () => {
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    if (error) {
+                        console.error('[POLL] Error polling quiz_states:', error);
+                        return;
+                    }
+                    console.log('[POLL] Polled quiz_states:', data);
+                    if (data && data.phase === 'live-question') {
+                        console.warn('[POLL] Forcing transition to question-screen from poll!');
+                        clearInterval(previewPollingInterval);
+                        previewPollingInterval = null;
+                        showScreen('question-screen');
+                        updatePlayerDisplay();
+                        updateScoreDisplay();
+                        if (data.question_data) {
+                            updateQuestionContent(data.question_data);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[POLL] Exception during polling:', err);
+                }
+            }, 2000);
+        }
+
+        // In handleQuizStateUpdate, start polling if entering preview
         function handleQuizStateUpdate(payload) {
             const { quizState } = payload.detail;
             console.log('🎯 === QUIZ STATE UPDATE ===');
@@ -746,6 +781,10 @@
             if (previewFallbackTimeout) {
                 clearTimeout(previewFallbackTimeout);
                 previewFallbackTimeout = null;
+            }
+            if (previewPollingInterval) {
+                clearInterval(previewPollingInterval);
+                previewPollingInterval = null;
             }
             switch (quizState.phase) {
                 case 'countdown':
@@ -777,7 +816,7 @@
                     if (previewTitle && quizState.questionData) {
                         previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
                     }
-                    // Fallback: if stuck on preview, force transition after 6s
+                    // Fallback: if stuck on preview, force transition after 6s and start polling
                     previewFallbackTimeout = setTimeout(() => {
                         const questionScreen = document.getElementById('question-screen');
                         if (!questionScreen.classList.contains('active')) {
@@ -786,6 +825,8 @@
                                 screen.classList.remove('active');
                             });
                             questionScreen.classList.add('active');
+                            // Start polling in case event is still missed
+                            startPreviewPolling();
                         }
                     }, 6000);
                     break;
@@ -812,6 +853,11 @@
                     // Update question content if available
                     if (quizState.questionData) {
                         updateQuestionContent(quizState.questionData);
+                    }
+                    // Stop polling if we get here
+                    if (previewPollingInterval) {
+                        clearInterval(previewPollingInterval);
+                        previewPollingInterval = null;
                     }
                     break;
                     
