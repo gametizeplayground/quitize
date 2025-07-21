@@ -552,11 +552,8 @@
 
                 updateStartButton();
 
-                // Hide main container and header, but do not start countdown yet
-                document.querySelector('.main-container').style.display = 'none';
-                document.querySelector('.header').style.display = 'none';
-                // The countdown will be triggered by the game session update event (status: 'starting')
-                // and will use the synchronized start_time
+                // DO NOT hide the main container and header here. Wait for the countdown to actually begin.
+                // The countdown and UI transition will be triggered by the gameSessionUpdated event.
                 
             } catch (error) {
                 console.error('Error starting game:', error);
@@ -579,6 +576,9 @@
         // Synchronized countdown function (ensure only one countdown runs)
         let hostSynchronizedCountdownInterval = null;
         function showSynchronizedCountdown(startTimeISO) {
+            // Hide main container and header ONLY when countdown actually begins
+            document.querySelector('.main-container').style.display = 'none';
+            document.querySelector('.header').style.display = 'none';
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
             let countdown = 5;
@@ -599,12 +599,9 @@
                     clearInterval(hostSynchronizedCountdownInterval);
                     hostSynchronizedCountdownInterval = null;
                     countdownScreen.classList.remove('active');
-                    // Make main UI visible again for the host
-                    document.querySelector('.main-container').style.display = 'flex';
-                    document.querySelector('.header').style.display = 'flex';
                     // After countdown, update status to 'started' and proceed
                     GameDB.updateGameSession(currentGameCode, { status: 'started' });
-                    showQuestionPreview();
+                    showQuestionPreview(); // This will show the title preview with countdown
                 }
             }, 250);
         }
