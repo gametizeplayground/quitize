@@ -472,9 +472,7 @@
         }
 
         // Handle quiz state updates
-        let lastQuizStatePayload = null;
         function handleQuizStateUpdate(payload) {
-            lastQuizStatePayload = payload;
             const { quizState } = payload.detail;
             
             console.log('🎯 === QUIZ STATE UPDATE ===');
@@ -506,15 +504,13 @@
                     
                 case 'question-preview':
                     console.log('Moving to question preview phase');
-                    showScreen('countdown-screen');
+                    showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
                     updatePlayerDisplay();
                     updateScoreDisplay();
-                    
                     // Update countdown number if available
                     if (quizState.countdown !== undefined) {
                         updateCountdownDisplay(quizState.countdown);
                     }
-                    
                     // Update quiz title with question info
                     const previewTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (previewTitle && quizState.questionData) {
@@ -613,10 +609,7 @@
             const startTimestamp = new Date(startTimeISO).getTime();
             const now = Date.now();
             let delay = Math.max(0, startTimestamp - now);
-            if (synchronizedCountdownInterval) {
-                clearInterval(synchronizedCountdownInterval);
-                synchronizedCountdownInterval = null;
-            }
+            // Update countdown every 250ms
             synchronizedCountdownInterval = setInterval(() => {
                 const now2 = Date.now();
                 const secondsLeft = Math.ceil((startTimestamp - now2) / 1000);
@@ -631,15 +624,6 @@
                     if (leaveBtn) leaveBtn.style.display = 'none';
                     // Now waiting for quiz state updates...
                     console.log('✅ Synchronized countdown complete. Now waiting for quiz state updates...');
-                    // --- NEW: Immediately proceed to the next page (question preview/countdown) ---
-                    // Show the question preview/countdown screen if quiz state is available
-                    // Otherwise, show a loading or transition screen
-                    if (typeof handleQuizStateUpdate === 'function' && window.lastQuizStatePayload) {
-                        handleQuizStateUpdate(window.lastQuizStatePayload);
-                    } else {
-                        // Fallback: show loading or question screen
-                        showScreen('question-screen');
-                    }
                 }
             }, 250);
         }
