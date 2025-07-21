@@ -521,6 +521,19 @@
                 case 'live-question':
                     console.log('Moving to live question phase');
                     showScreen('question-screen');
+                    // Robust: force transition if not active
+                    setTimeout(() => {
+                        const questionScreen = document.getElementById('question-screen');
+                        if (!questionScreen.classList.contains('active')) {
+                            console.warn('[FORCE] Forcing question-screen to active!');
+                            document.querySelectorAll('.screen').forEach(screen => {
+                                screen.classList.remove('active');
+                            });
+                            questionScreen.classList.add('active');
+                        } else {
+                            console.log('[DEBUG] question-screen is active.');
+                        }
+                    }, 100);
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     questionStartTime = Date.now();
