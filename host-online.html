@@ -599,6 +599,9 @@
                     clearInterval(hostSynchronizedCountdownInterval);
                     hostSynchronizedCountdownInterval = null;
                     countdownScreen.classList.remove('active');
+                    // Make main UI visible again for the host
+                    document.querySelector('.main-container').style.display = 'flex';
+                    document.querySelector('.header').style.display = 'flex';
                     // After countdown, update status to 'started' and proceed
                     GameDB.updateGameSession(currentGameCode, { status: 'started' });
                     showQuestionPreview();
