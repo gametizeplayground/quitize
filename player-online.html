@@ -269,6 +269,7 @@
         let playerId = '';
         let currentScore = 0;
         let questionStartTime = 0;
+        let waitingRoomPollingInterval = null;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -349,6 +350,8 @@
                 });
                 
                 console.log('✅ Player successfully joined game. Waiting for real-time updates...');
+                // Start fallback polling
+                startWaitingRoomPolling();
                 
             } catch (error) {
                 console.error('Error joining game:', error);
@@ -623,12 +626,44 @@
                 
                 // Start listening for quiz state changes immediately
                 console.log('✅ Now waiting for quiz state updates...');
+                // Stop fallback polling
+                if (waitingRoomPollingInterval) {
+                    clearInterval(waitingRoomPollingInterval);
+                    waitingRoomPollingInterval = null;
+                }
             }
             
             if (session.scores && session.scores[playerName]) {
                 currentScore = session.scores[playerName];
                 updateScoreDisplay();
             }
+        }
+
+        // Fallback polling for game session status
+        function startWaitingRoomPolling() {
+            if (waitingRoomPollingInterval) return;
+            waitingRoomPollingInterval = setInterval(async () => {
+                if (!currentGameCode) return;
+                try {
+                    const session = await GameDB.getGameSession(currentGameCode);
+                    console.log('[Polling] Checked game session status:', session?.status);
+                    if (session && session.status === 'started') {
+                        console.log('[Polling] GAME STARTED detected via polling!');
+                        clearInterval(waitingRoomPollingInterval);
+                        waitingRoomPollingInterval = null;
+                        // Move to countdown screen
+                        showScreen('countdown-screen');
+                        updatePlayerDisplay();
+                        // Hide the waiting room and prepare for quiz
+                        const leaveBtn = document.querySelector('.leave-room-btn');
+                        if (leaveBtn) leaveBtn.style.display = 'none';
+                        // Start listening for quiz state changes immediately
+                        console.log('✅ Now waiting for quiz state updates...');
+                    }
+                } catch (err) {
+                    console.error('[Polling] Error checking game session status:', err);
+                }
+            }, 2000);
         }
 
         // Initialize event listeners

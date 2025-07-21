@@ -516,6 +516,7 @@
                 // Update game state in Supabase with retry logic
                 console.log('🎮 Starting game for code:', currentGameCode);
                 let retries = 3;
+                let lastError = null;
                 while (retries > 0) {
                     try {
                         console.log('📡 Sending game start update to database...');
@@ -526,6 +527,7 @@
                         break; // Success, exit retry loop
                     } catch (error) {
                         retries--;
+                        lastError = error;
                         console.error(`❌ Failed to update game session, retries left: ${retries}`, error);
                         console.error('Error details:', {
                             message: error.message,
@@ -534,6 +536,13 @@
                             hint: error.hint
                         });
                         if (retries === 0) {
+                            // Disable start button and show error
+                            const startBtn = document.getElementById('start-btn');
+                            if (startBtn) {
+                                startBtn.disabled = true;
+                                startBtn.textContent = 'Error!';
+                            }
+                            alert('Failed to start game due to a database error. Please refresh and try again.');
                             throw error; // Re-throw if no retries left
                         }
                         await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
@@ -551,7 +560,7 @@
                 console.error('Error starting game:', error);
                 gameStarted = false;
                 updateStartButton();
-                alert('Failed to start game. Please try again.');
+                // Error alert already shown above
             }
         }
 
