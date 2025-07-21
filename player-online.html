@@ -270,6 +270,7 @@
         let currentScore = 0;
         let questionStartTime = 0;
         let waitingRoomPollingInterval = null;
+        let syncCountdownInterval = null;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -601,6 +602,35 @@
             }
         }
 
+        // Synchronized countdown handler
+        function handleSynchronizedStart(startTime) {
+            const startTimestamp = new Date(startTime).getTime();
+            const now = Date.now();
+            const delay = Math.max(0, startTimestamp - now);
+            const countdownScreen = document.getElementById('countdown-screen');
+            showScreen('countdown-screen');
+            let countdown = Math.ceil(delay / 1000);
+            updateCountdownDisplay(countdown);
+            if (syncCountdownInterval) clearInterval(syncCountdownInterval);
+            syncCountdownInterval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    updateCountdownDisplay(countdown);
+                } else {
+                    clearInterval(syncCountdownInterval);
+                    syncCountdownInterval = null;
+                    // Now start the game
+                    showScreen('question-screen'); // Or whatever the first game screen is
+                    updatePlayerDisplay();
+                    // Hide the waiting room and prepare for quiz
+                    const leaveBtn = document.querySelector('.leave-room-btn');
+                    if (leaveBtn) leaveBtn.style.display = 'none';
+                    // Start listening for quiz state changes immediately
+                    console.log('✅ Now waiting for quiz state updates...');
+                }
+            }, 1000);
+        }
+
         // Handle game session updates
         function handleGameSessionUpdate(payload) {
             const { session } = payload.detail;
@@ -611,28 +641,31 @@
             console.log('Session status:', session.status);
             console.log('Current screen:', document.querySelector('.screen.active')?.id);
             console.log('=====================================');
-            
-            // Check if game has started
-            if (session.status === 'started') {
-                console.log('🎮 GAME STARTED! Preparing for quiz...');
-                
-                // Immediately move to loading/countdown screen
-                showScreen('countdown-screen');
-                updatePlayerDisplay();
-                
-                // Hide the waiting room and prepare for quiz
-                const leaveBtn = document.querySelector('.leave-room-btn');
-                if (leaveBtn) leaveBtn.style.display = 'none';
-                
-                // Start listening for quiz state changes immediately
-                console.log('✅ Now waiting for quiz state updates...');
-                // Stop fallback polling
+            // Synchronized start logic
+            if (session.status === 'starting' && session.start_time) {
                 if (waitingRoomPollingInterval) {
                     clearInterval(waitingRoomPollingInterval);
                     waitingRoomPollingInterval = null;
                 }
+                handleSynchronizedStart(session.start_time);
+                return;
             }
-            
+            // Only transition on status: 'started' if not already in game
+            if (session.status === 'started') {
+                // Only transition if not already in game
+                if (document.querySelector('.screen.active')?.id !== 'question-screen') {
+                    showScreen('question-screen');
+                    updatePlayerDisplay();
+                    const leaveBtn = document.querySelector('.leave-room-btn');
+                    if (leaveBtn) leaveBtn.style.display = 'none';
+                    console.log('✅ Now waiting for quiz state updates...');
+                }
+                if (waitingRoomPollingInterval) {
+                    clearInterval(waitingRoomPollingInterval);
+                    waitingRoomPollingInterval = null;
+                }
+                return;
+            }
             if (session.scores && session.scores[playerName]) {
                 currentScore = session.scores[playerName];
                 updateScoreDisplay();

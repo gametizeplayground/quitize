@@ -513,15 +513,16 @@
 
                 gameStarted = true;
 
-                // Update game state in Supabase with retry logic
-                console.log('🎮 Starting game for code:', currentGameCode);
+                // Synchronized start: set status to 'starting' and set start_time 5 seconds in the future
+                const startTime = Date.now() + 5000; // 5 seconds from now
                 let retries = 3;
                 let lastError = null;
                 while (retries > 0) {
                     try {
-                        console.log('📡 Sending game start update to database...');
+                        console.log('📡 Sending game start update to database (synchronized start)...');
                         const result = await GameDB.updateGameSession(currentGameCode, {
-                            status: 'started'
+                            status: 'starting',
+                            start_time: new Date(startTime).toISOString()
                         });
                         console.log('✅ Game session updated successfully:', result);
                         break; // Success, exit retry loop
@@ -551,10 +552,10 @@
 
                 updateStartButton();
 
-                // Hide main container and start quiz countdown
+                // Hide main container and header, but do NOT start quiz countdown yet
                 document.querySelector('.main-container').style.display = 'none';
                 document.querySelector('.header').style.display = 'none';
-                showQuizCountdown();
+                // Wait for the synchronized countdown handler to trigger
                 
             } catch (error) {
                 console.error('Error starting game:', error);
@@ -563,6 +564,43 @@
                 // Error alert already shown above
             }
         }
+
+        // Listen for game session updates for synchronized start
+        window.addEventListener('gameSessionUpdated', function(e) {
+            const session = e.detail.session;
+            if (session.status === 'starting' && session.start_time) {
+                // Synchronized countdown
+                const startTimestamp = new Date(session.start_time).getTime();
+                const now = Date.now();
+                const delay = Math.max(0, startTimestamp - now);
+                const countdownScreen = document.getElementById('quiz-countdown-screen');
+                countdownScreen.classList.add('active');
+                let countdown = Math.ceil(delay / 1000);
+                const countdownElement = document.getElementById('quiz-countdown');
+                countdownElement.textContent = countdown;
+                // Update quiz state for players immediately
+                GameDB.updateQuizState(currentGameCode, {
+                    phase: 'countdown',
+                    countdown: countdown
+                });
+                const interval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        countdownElement.textContent = countdown;
+                        GameDB.updateQuizState(currentGameCode, {
+                            phase: 'countdown',
+                            countdown: countdown
+                        });
+                    } else {
+                        clearInterval(interval);
+                        countdownScreen.classList.remove('active');
+                        // After countdown, update status to 'started' and proceed
+                        GameDB.updateGameSession(currentGameCode, { status: 'started' });
+                        showQuestionPreview();
+                    }
+                }, 1000);
+            }
+        });
 
         // Show quiz countdown screen
         async function showQuizCountdown() {
