@@ -611,8 +611,16 @@
             }, 250);
         }
 
+        // Helper to hide all quiz screens
+        function hideAllQuizScreens() {
+            document.querySelectorAll('.quiz-screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+        }
+
         // Show question preview screen
         async function showQuestionPreview() {
+            hideAllQuizScreens();
             const previewScreen = document.getElementById('question-preview-screen');
             const question = quizQuestions[currentQuestionIndex];
             
@@ -662,6 +670,7 @@
 
         // Show live question screen
         async function showLiveQuestion() {
+            hideAllQuizScreens();
             const liveScreen = document.getElementById('live-question-screen');
             const question = quizQuestions[currentQuestionIndex];
             
@@ -705,6 +714,7 @@
 
         // Show question results
         async function showQuestionResults() {
+            hideAllQuizScreens();
             const resultsScreen = document.getElementById('quiz-results-screen');
             const question = quizQuestions[currentQuestionIndex];
             
