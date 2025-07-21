@@ -566,16 +566,18 @@
             }
         }
 
-        // Listen for game session updates to trigger synchronized countdown
-        window.addEventListener('gameSessionUpdated', function(e) {
+        // Register the gameSessionUpdated event listener at the top-level so it is always active
+        window.addEventListener('gameSessionUpdated', onHostGameSessionUpdated);
+
+        function onHostGameSessionUpdated(e) {
             const session = e.detail.session;
             if (session.status === 'starting' && session.start_time) {
-                // Synchronized countdown
                 showSynchronizedCountdown(session.start_time);
             }
-        });
+        }
 
-        // Synchronized countdown function
+        // Synchronized countdown function (ensure only one countdown runs)
+        let hostSynchronizedCountdownInterval = null;
         function showSynchronizedCountdown(startTimeISO) {
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
@@ -585,13 +587,17 @@
             const startTimestamp = new Date(startTimeISO).getTime();
             const now = Date.now();
             let delay = Math.max(0, startTimestamp - now);
-            // Update countdown every second
-            const interval = setInterval(() => {
+            if (hostSynchronizedCountdownInterval) {
+                clearInterval(hostSynchronizedCountdownInterval);
+                hostSynchronizedCountdownInterval = null;
+            }
+            hostSynchronizedCountdownInterval = setInterval(() => {
                 const now2 = Date.now();
                 const secondsLeft = Math.ceil((startTimestamp - now2) / 1000);
                 countdownElement.textContent = Math.max(0, secondsLeft);
                 if (secondsLeft <= 0) {
-                    clearInterval(interval);
+                    clearInterval(hostSynchronizedCountdownInterval);
+                    hostSynchronizedCountdownInterval = null;
                     countdownScreen.classList.remove('active');
                     // After countdown, update status to 'started' and proceed
                     GameDB.updateGameSession(currentGameCode, { status: 'started' });
