@@ -261,27 +261,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Preview Screen -->
-        <div class="screen" id="preview-screen">
-            <div class="preview-content">
-                <h1 class="quiz-title" id="preview-title">Get Ready...</h1>
-                <div class="preview-countdown" id="preview-countdown">5</div>
-                <div class="preview-mascot">
-                    <img src="assets/getready_mascot.png" alt="Get Ready Mascot">
-                </div>
-            </div>
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -528,18 +507,17 @@
                     break;
                 case 'question-preview':
                     console.log('Moving to question preview phase');
-                    showScreen('preview-screen');
+                    showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
                     updatePlayerDisplay();
                     updateScoreDisplay();
-                    // Update preview countdown if available
+                    // Update countdown number if available
                     if (quizState.countdown !== undefined) {
-                        document.getElementById('preview-countdown').textContent = quizState.countdown;
+                        updateCountdownDisplay(quizState.countdown);
                     }
-                    // Update preview title if you want to show the question
-                    if (quizState.questionData && quizState.questionData.title) {
-                        document.getElementById('preview-title').textContent = quizState.questionData.title;
-                    } else {
-                        document.getElementById('preview-title').textContent = 'Get Ready...';
+                    // Update quiz title with question info
+                    const previewTitle = document.querySelector('#countdown-screen .quiz-title');
+                    if (previewTitle && quizState.questionData) {
+                        previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
                     }
                     break;
                 case 'live-question':
@@ -828,17 +806,15 @@
                     break;
                 case 'question-preview':
                     console.log('Moving to question preview phase');
-                    showScreen('preview-screen');
+                    showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     if (quizState.countdown !== undefined) {
-                        document.getElementById('preview-countdown').textContent = quizState.countdown;
+                        updateCountdownDisplay(quizState.countdown);
                     }
-                    const previewTitle = document.querySelector('#preview-screen .quiz-title');
+                    const previewTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (previewTitle && quizState.questionData) {
                         previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
-                    } else {
-                        previewTitle.textContent = 'Get Ready...';
                     }
                     // Fallback: if stuck on preview, force transition after 6s and start polling
                     previewFallbackTimeout = setTimeout(() => {
