@@ -71,7 +71,24 @@ function initializeGameSubscriptions(gameCode) {
             }, 
             (payload) => {
                 console.log('Quiz state updated:', payload);
-                handleQuizStateUpdate(payload);
+                // handleQuizStateUpdate(payload); // <-- Remove this direct call
+                // Instead, dispatch a DOM event so player-online.html can handle it
+                const { eventType, new: newRecord } = payload;
+                if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                    window.dispatchEvent(new CustomEvent('quizStateUpdated', {
+                        detail: {
+                            gameCode: newRecord.game_code,
+                            quizState: {
+                                phase: newRecord.phase,
+                                currentQuestion: newRecord.current_question,
+                                questionData: newRecord.question_data,
+                                countdown: newRecord.question_data?.countdown,
+                                timeLeft: newRecord.question_data?.timeLeft,
+                                lastUpdated: newRecord.updated_at
+                            }
+                        }
+                    }));
+                }
             }
         )
         .subscribe((status) => {
