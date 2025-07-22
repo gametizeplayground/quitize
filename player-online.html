@@ -483,6 +483,10 @@
             console.log('Current Screen:', document.querySelector('.screen.active')?.id);
             console.log('==============================');
             
+            // Extra debug logs
+            console.log('[DEBUG] handleQuizStateUpdate called with phase:', quizState.phase);
+            console.log('[DEBUG] All .screen elements:', Array.from(document.querySelectorAll('.screen')).map(e => e.id));
+            
             switch (quizState.phase) {
                 case 'countdown':
                     console.log('Moving to countdown phase');
@@ -501,7 +505,6 @@
                         quizTitle.textContent = 'Quiz 1';
                     }
                     break;
-                    
                 case 'question-preview':
                     console.log('Moving to question preview phase');
                     showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
@@ -517,13 +520,13 @@
                         previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
                     }
                     break;
-                    
                 case 'live-question':
                     console.log('Moving to live question phase');
                     showScreen('question-screen');
-                    // Robust: force transition if not active
+                    // Extra debug: check if question-screen is now active
                     setTimeout(() => {
                         const questionScreen = document.getElementById('question-screen');
+                        console.log('[DEBUG] question-screen classList:', questionScreen.classList);
                         if (!questionScreen.classList.contains('active')) {
                             console.warn('[FORCE] Forcing question-screen to active!');
                             document.querySelectorAll('.screen').forEach(screen => {
@@ -543,21 +546,18 @@
                         updateQuestionContent(quizState.questionData);
                     }
                     break;
-                    
                 case 'results':
                     console.log('Moving to results phase');
                     showScreen('results-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     break;
-                    
                 case 'scoreboard':
                     console.log('Moving to scoreboard phase');
                     showScreen('loading-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     break;
-                    
                 case 'final-results':
                     console.log('Moving to final results phase');
                     showScreen('final-results-screen');
