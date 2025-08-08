@@ -271,6 +271,8 @@
         let questionStartTime = 0;
         let waitingRoomPollingInterval = null;
         let synchronizedCountdownInterval = null;
+        let lastSelectedAnswer = null;
+        let lastAnswerTimeTaken = 0;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -449,6 +451,8 @@
             }
             
             const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+            lastSelectedAnswer = answer;
+            lastAnswerTimeTaken = timeTaken;
             
             try {
                 // Submit answer to Supabase
@@ -459,11 +463,10 @@
                     btn.disabled = true;
                 });
                 
-                // Show results screen
-                setTimeout(() => {
-                    showScreen('results-screen');
-                    updateScoreDisplay();
-                }, 1000);
+                // Show waiting screen while others answer
+                showScreen('loading-screen');
+                const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                if (loadingTitle) loadingTitle.textContent = 'Waiting for other players to answer...';
                 
             } catch (error) {
                 console.error('Error submitting answer:', error);
@@ -760,6 +763,8 @@
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     questionStartTime = Date.now();
+                    lastSelectedAnswer = null;
+                    lastAnswerTimeTaken = 0;
                     
                     // Update question content if available
                     if (quizState.questionData) {
@@ -776,6 +781,24 @@
                     console.log('Moving to results phase');
                     showScreen('results-screen');
                     updatePlayerDisplay();
+                    // Compute and display result locally
+                    try {
+                        const question = quizState.questionData;
+                        let message = 'Great job!';
+                        if (question && lastSelectedAnswer) {
+                            const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
+                            const isCorrect = selectedIndex === question.correct;
+                            let pointsGained = 0;
+                            if (isCorrect) {
+                                const questionTimeLimit = 20; // seconds
+                                const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
+                                pointsGained = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
+                            }
+                            message = isCorrect ? `Correct! +${pointsGained}` : 'Wrong! +0';
+                        }
+                        const resultsMessage = document.getElementById('results-message');
+                        if (resultsMessage) resultsMessage.textContent = message;
+                    } catch (e) { console.warn('Result display error:', e); }
                     updateScoreDisplay();
                     break;
                     
