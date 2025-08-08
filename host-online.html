@@ -625,6 +625,9 @@
             previewScreen.classList.add('active');
             
             let previewCountdown = durationSeconds;
+            // Compute a precise live start timestamp shared with players
+            const liveStartTs = Date.now() + (durationSeconds * 1000);
+            const liveStartISO = new Date(liveStartTs).toISOString();
             
             // Start preview timer bar animation
             const timerBar = document.getElementById('preview-timer-bar');
@@ -635,11 +638,11 @@
                 timerBar.style.width = '0%';
             }, 100);
             
-            // Update quiz state for players
+            // Update quiz state for players (include precise live start time)
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'question-preview',
                 currentQuestion: currentQuestionIndex,
-                questionData: question,
+                questionData: { ...question, liveStartISO },
                 countdown: previewCountdown
             });
             
@@ -650,13 +653,17 @@
                     await GameDB.updateQuizState(currentGameCode, {
                         phase: 'question-preview',
                         currentQuestion: currentQuestionIndex,
-                        questionData: question,
+                        questionData: { ...question, liveStartISO },
                         countdown: previewCountdown
                     });
                 } else {
                     clearInterval(previewInterval);
                     previewScreen.classList.remove('active');
-                    showLiveQuestion();
+                    // Start live exactly at the shared timestamp
+                    const delayMs = Math.max(0, liveStartTs - Date.now());
+                    setTimeout(() => {
+                        showLiveQuestion();
+                    }, delayMs);
                 }
             }, 1000);
         }
