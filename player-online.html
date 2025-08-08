@@ -220,9 +220,12 @@
 
         <!-- Results Screen -->
         <div class="screen" id="results-screen">
-            <div class="results-screen-content">
-                <h1 class="quiz-title">Quiz 1</h1>
-                <div class="results-message" id="results-message">Great job!</div>
+            <div class="quiz-result-content">
+                <h1 class="result-title" id="result-title">Correct</h1>
+                <div class="result-icon" id="result-icon">
+                    <span id="result-icon-symbol">✓</span>
+                </div>
+                <div class="result-points" id="result-points">+0</div>
             </div>
 
             <div class="player-info">
@@ -495,20 +498,27 @@
                         showScreen('results-screen');
                         const question = data.question_data;
                         try {
-                            let message = 'Great job!';
+                            let isCorrect = false;
+                            let pointsGained = 0;
                             if (question && lastSelectedAnswer) {
                                 const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
-                                const isCorrect = selectedIndex === question.correct;
-                                let pointsGained = 0;
+                                isCorrect = selectedIndex === question.correct;
                                 if (isCorrect) {
                                     const questionTimeLimit = 20; // seconds
                                     const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
                                     pointsGained = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
                                 }
-                                message = isCorrect ? `Correct! +${pointsGained}` : 'Wrong! +0';
                             }
-                            const msgEl = document.getElementById('results-message');
-                            if (msgEl) msgEl.textContent = message;
+                            const titleEl = document.getElementById('result-title');
+                            const iconEl = document.getElementById('result-icon');
+                            const iconSym = document.getElementById('result-icon-symbol');
+                            const pointsEl = document.getElementById('result-points');
+                            if (titleEl && iconEl && iconSym && pointsEl) {
+                                titleEl.textContent = isCorrect ? 'Correct' : 'Wrong';
+                                iconEl.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
+                                iconSym.textContent = isCorrect ? '✓' : '✗';
+                                pointsEl.textContent = isCorrect ? `+${pointsGained}` : '+0';
+                            }
                             // Refresh score from session
                             const session = await GameDB.getGameSession(currentGameCode);
                             if (session && session.scores && session.scores[playerName] != null) {
@@ -843,8 +853,18 @@
                             }
                             message = isCorrect ? `Correct! +${pointsGained}` : 'Wrong! +0';
                         }
-                        const resultsMessage = document.getElementById('results-message');
-                        if (resultsMessage) resultsMessage.textContent = message;
+                        const titleEl = document.getElementById('result-title');
+                        const iconEl = document.getElementById('result-icon');
+                        const iconSym = document.getElementById('result-icon-symbol');
+                        const pointsEl = document.getElementById('result-points');
+                        const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
+                        const isCorrect = question && selectedIndex === question.correct;
+                        if (titleEl && iconEl && iconSym && pointsEl) {
+                            titleEl.textContent = isCorrect ? 'Correct' : 'Wrong';
+                            iconEl.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
+                            iconSym.textContent = isCorrect ? '✓' : '✗';
+                            pointsEl.textContent = isCorrect ? message.replace('Correct! ', '') : '+0';
+                        }
                         // Also try to reflect persisted score from session if available
                         GameDB.getGameSession(currentGameCode).then(session => {
                             if (session && session.scores && session.scores[playerName] != null) {
