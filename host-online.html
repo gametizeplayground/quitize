@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quitize - Host Dashboard</title>
+    <link rel="stylesheet" href="hoststyles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <div class="header">
+        <img src="assets/logo.png" alt="Quitize Logo" class="logo">
+    </div>
+
+    <div class="main-container">
+        <!-- Game Code Card moved to top center -->
+        <div class="game-code-card">
+            <div class="code-section">
+                <div class="game-key-label">GAME CODE</div>
+                <div class="game-code" id="display-game-code">255 8657</div>
+                <div class="game-url">Join at: quitize.game/play</div>
+            </div>
+            <div class="qr-section">
+                <div class="qr-code">
+                    <img id="qr-code-image" src="" alt="QR Code" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Players section in the middle -->
+        <div class="players-section">
+            <div class="players-grid" id="players-grid">
+                <!-- Players will be added here dynamically -->
+            </div>
+            <div class="no-players" id="no-players" style="display: block;">
+                No players joined yet
+            </div>
+        </div>
+
+        <!-- Start button moved to bottom -->
+        <button class="start-button" id="start-btn" onclick="startGame()" disabled>
+            Start Game
+        </button>
+    </div>
+
+    <!-- Player count moved to bottom right -->
+    <div class="player-count-bottom">
+        <span id="player-count">0</span> players
+    </div>
+
+    <!-- Quiz Countdown Screen -->
+    <div class="quiz-screen" id="quiz-countdown-screen">
+        <div class="quiz-header">
+            <div class="quiz-title">Fruits</div>
+        </div>
+        <div class="countdown-circle">
+                <span id="quiz-countdown">10</span>
+        </div>
+    </div>
+
+    <!-- Question Preview Screen -->
+    <div class="quiz-screen" id="question-preview-screen">
+        <div class="quiz-header">
+            <div class="quiz-title">What colour is watermelon?</div>
+            <div class="question-counter">1/10</div>
+        </div>
+        <div class="question-image-container">
+            <img src="https://images.unsplash.com/photo-1587822863-4d0a812c7b8f?w=400&h=300&fit=crop" alt="Watermelon" class="question-image">
+        </div>
+        <div class="timer-bar-container">
+            <div class="timer-bar" id="preview-timer-bar"></div>
+        </div>
+    </div>
+
+    <!-- Live Quiz Question Screen -->
+    <div class="quiz-screen" id="live-question-screen">
+        <div class="quiz-header">
+            <div class="quiz-title" id="live-question-text">What colour is watermelon?</div>
+            <div class="question-counter" id="live-question-counter">1/10</div>
+        </div>
+        <div class="question-content">
+            <div class="timer-section">
+                <div class="timer-circle">
+                    <span id="question-timer">20</span>
+                </div>
+            </div>
+            <div class="question-main">
+                <div class="question-image-container">
+                    <img src="https://images.unsplash.com/photo-1587822863-4d0a812c7b8f?w=400&h=300&fit=crop" alt="Watermelon" class="question-image" id="live-question-image">
+                </div>
+                <div class="answer-options">
+                    <div class="option-row">
+                        <div class="answer-option option-a">
+                            <span class="option-letter">A</span>
+                            <span class="option-text">Yellow</span>
+                        </div>
+                        <div class="answer-option option-b">
+                            <span class="option-letter">B</span>
+                            <span class="option-text">Red</span>
+                        </div>
+                    </div>
+                    <div class="option-row">
+                        <div class="answer-option option-c">
+                            <span class="option-letter">C</span>
+                            <span class="option-text">White</span>
+                        </div>
+                        <div class="answer-option option-d">
+                            <span class="option-letter">D</span>
+                            <span class="option-text">Green</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Results Screen -->
+    <div class="quiz-screen" id="quiz-results-screen">
+        <div class="results-header">
+            <h1 class="quiz-title">Quiz 1</h1>
+        </div>
+        
+        <div class="results-content">
+            <div class="results-answers">
+                <div class="answer-bar">
+                    <div class="answer-bar-chart" id="answer-a-bar" style="height: 0%">
+                        <div class="answer-count" id="answer-a-count">0</div>
+                    </div>
+                    <div class="answer-label">A</div>
+                </div>
+                <div class="answer-bar">
+                    <div class="answer-bar-chart" id="answer-b-bar" style="height: 0%">
+                        <div class="answer-count" id="answer-b-count">0</div>
+                    </div>
+                    <div class="answer-label">B</div>
+                </div>
+                <div class="answer-bar">
+                    <div class="answer-bar-chart" id="answer-c-bar" style="height: 0%">
+                        <div class="answer-count" id="answer-c-count">0</div>
+                    </div>
+                    <div class="answer-label">C</div>
+                </div>
+                <div class="answer-bar">
+                    <div class="answer-bar-chart" id="answer-d-bar" style="height: 0%">
+                        <div class="answer-count" id="answer-d-count">0</div>
+                    </div>
+                    <div class="answer-label">D</div>
+                </div>
+            </div>
+            
+            <div class="answer-results">
+                <div class="result-option-row">
+                    <div class="result-option result-option-a" id="result-option-a">
+                        <div class="result-letter">A</div>
+                        <div class="result-option-text" id="result-option-text-a">Yellow</div>
+                    </div>
+                    <div class="result-option result-option-b" id="result-option-b">
+                        <div class="result-letter">B</div>
+                        <div class="result-option-text" id="result-option-text-b">Red</div>
+                    </div>
+                </div>
+                <div class="result-option-row">
+                    <div class="result-option result-option-c" id="result-option-c">
+                        <div class="result-letter">C</div>
+                        <div class="result-option-text" id="result-option-text-c">White</div>
+                    </div>
+                    <div class="result-option result-option-d" id="result-option-d">
+                        <div class="result-letter">D</div>
+                        <div class="result-option-text" id="result-option-text-d">Green</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button class="next-button" onclick="showScoreboard()">Next</button>
+    </div>
+
+    <!-- Scoreboard Screen -->
+    <div class="quiz-screen" id="scoreboard-screen">
+        <div class="scoreboard-header">
+            <div class="scoreboard-title">Scoreboard</div>
+        </div>
+        <div class="scoreboard-content">
+            <div class="player-scores" id="player-scores">
+                <!-- Player scores will be populated dynamically -->
+            </div>
+        </div>
+        <button class="next-button" onclick="proceedToNextQuestion()">Next</button>
+    </div>
+
+    <!-- Final Leaderboard Screen -->
+    <div class="quiz-screen" id="final-leaderboard-screen">
+        <div class="final-header">
+            <img src="assets/logo.png" alt="Quitize Logo" class="logo">
+            <button class="play-again-button" onclick="playAgain()">Play Again</button>
+        </div>
+
+        <div class="podium-container">
+            <!-- 2nd Place -->
+            <div class="podium-player second-place">
+                <div class="medal-container">
+                    <img src="assets/medal_2.png" alt="Silver Medal" class="medal-image">
+                </div>
+                <div class="podium-info">
+                    <div class="podium-rank">2</div>
+                    <div class="podium-name">-</div>
+                    <div class="podium-score">0</div>
+                </div>
+            </div>
+
+            <!-- 1st Place (Winner) -->
+            <div class="podium-player first-place">
+                <div class="medal-container">
+                    <img src="assets/medal_1.png" alt="Gold Medal" class="medal-image">
+                </div>
+                <div class="podium-info">
+                    <div class="podium-rank winner-rank">1</div>
+                    <div class="podium-name">-</div>
+                    <div class="podium-score">0</div>
+                </div>
+            </div>
+
+            <!-- 3rd Place -->
+            <div class="podium-player third-place">
+                <div class="medal-container">
+                    <img src="assets/medal_3.png" alt="Bronze Medal" class="medal-image">
+                </div>
+                <div class="podium-info">
+                    <div class="podium-rank">3</div>
+                    <div class="podium-name">-</div>
+                    <div class="podium-score">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let gameCode = '';
+        let currentGameCode = '';
+        let gameStarted = false;
+        let currentQuestionIndex = 0;
+        let questionTimer;
+
+        const quizQuestions = [
+            {
+                title: "What colour is watermelon?",
+                image: "assets/watermelon.jpg",
+                options: ["Yellow", "Red", "White", "Green"],
+                correct: 3
+            },
+            {
+                title: "Which fruit is this?",
+                image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=300&fit=crop",
+                options: ["Apple", "Orange", "Banana", "Grape"],
+                correct: 0
+            }
+        ];
+
+        // Generate random game code
+        async function generateGameCode() {
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            // Keep generating until we find a unique code
+            do {
+                gameCode = Math.floor(100000 + Math.random() * 900000).toString();
+                attempts++;
+                
+                if (attempts > maxAttempts) {
+                    alert('Unable to generate a unique game code. Please try again.');
+                    return;
+                }
+                
+                // Check if this code already exists
+                try {
+                    const exists = await GameDB.gameCodeExists(gameCode);
+                    if (!exists) break; // Found a unique code
+                    console.log(`Game code ${gameCode} already exists, generating new one...`);
+                } catch (error) {
+                    console.warn('Error checking game code existence:', error);
+                    break; // Continue with this code if check fails
+                }
+            } while (attempts <= maxAttempts);
+            
+            // Format with space for display
+            const formattedCode = gameCode.slice(0, 3) + ' ' + gameCode.slice(3);
+            document.getElementById('display-game-code').textContent = formattedCode;
+            
+            // Initialize game session in Supabase
+            currentGameCode = gameCode;
+            try {
+                await GameDB.createGameSession(gameCode);
+                // Initialize real-time subscriptions
+                initializeGameSubscriptions(gameCode);
+                console.log('Game session created successfully with code:', gameCode);
+            } catch (error) {
+                console.error('Failed to create game session:', error);
+                alert('Failed to create game session. Please try again.');
+                return;
+            }
+            
+            // Generate QR code for the game
+            generateQRCode();
+            
+            return gameCode;
+        }
+
+        // Generate QR Code for the game
+        function generateQRCode() {
+            // Construct the game URL with the current domain and game code
+            const baseURL = window.location.origin;
+            const gameURL = `${baseURL}/player-online.html?code=${currentGameCode}`;
+            
+            // Use QR Server API to generate the QR code
+            const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(gameURL)}`;
+            
+            const qrCodeImage = document.getElementById('qr-code-image');
+            qrCodeImage.src = qrCodeURL;
+            qrCodeImage.style.width = '100%';
+            qrCodeImage.style.height = '100%';
+            qrCodeImage.style.objectFit = 'contain';
+            qrCodeImage.style.borderRadius = '8px';
+            
+            // Add click handler to copy URL
+            qrCodeImage.onclick = function() {
+                copyToClipboard(gameURL);
+                showMessage('Game URL copied to clipboard!');
+            };
+            
+            // Add error handling
+            qrCodeImage.onerror = function() {
+                console.error('Failed to load QR code');
+                qrCodeImage.style.backgroundColor = '#f0f0f0';
+                qrCodeImage.style.display = 'flex';
+                qrCodeImage.style.alignItems = 'center';
+                qrCodeImage.style.justifyContent = 'center';
+                qrCodeImage.style.fontSize = '12px';
+                qrCodeImage.style.color = '#666';
+                qrCodeImage.alt = 'QR Code unavailable';
+            };
+            
+            // Update the URL text to show the actual domain
+            const gameUrlElement = document.querySelector('.game-url');
+            const domain = window.location.hostname === 'localhost' ? 'quitize.game' : window.location.hostname;
+            gameUrlElement.textContent = `Join at: game.quitize.com/play`;
+            
+            console.log('QR Code generated for URL:', gameURL);
+        }
+
+        // Copy text to clipboard
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).catch(err => {
+                    console.error('Failed to copy: ', err);
+                    fallbackCopyTextToClipboard(text);
+                });
+            } else {
+                fallbackCopyTextToClipboard(text);
+            }
+        }
+
+        // Fallback copy method for older browsers
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // Show temporary message
+        function showMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.background = '#4fc3a3';
+            messageDiv.style.color = 'white';
+            messageDiv.style.padding = '10px 20px';
+            messageDiv.style.borderRadius = '25px';
+            messageDiv.style.zIndex = '1000';
+            messageDiv.style.fontSize = '14px';
+            messageDiv.style.fontWeight = '500';
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 3000);
+        }
+
+        // Add this function to fetch players from the players table
+        async function fetchPlayersFromTable(gameCode) {
+            const { data, error } = await window.supabaseClient
+                .from('players')
+                .select('*')
+                .eq('game_code', gameCode);
+
+            if (error) {
+                console.error('Error fetching players:', error);
+                return [];
+            }
+            return data;
+        }
+
+        // Update player list from Supabase
+        async function updatePlayerListFromSession() {
+            try {
+                console.log('Fetching players for game code:', currentGameCode);
+                const playerRows = await fetchPlayersFromTable(currentGameCode);
+                console.log('Fetched player rows:', playerRows);
+                const newPlayers = playerRows.map(p => p.name);
+                // Only update if there are actual changes
+                if (JSON.stringify(players) !== JSON.stringify(newPlayers)) {
+                    players = newPlayers;
+                    // Update the player count and list
+                    const playerCount = players.length;
+                    document.getElementById('player-count').textContent = playerCount;
+                    // Update the players display
+                    updatePlayersDisplay();
+                    updateStartButton();
+                }
+            } catch (error) {
+                console.error('Error updating player list:', error);
+            }
+        }
+
+        // Listen for player changes
+        function startPlayerListener() {
+            // Listen for custom events from Supabase subscriptions
+            window.addEventListener('gameSessionUpdated', function(e) {
+                if (e.detail.gameCode === currentGameCode) {
+                    updatePlayerListFromSession();
+                }
+            });
+
+            window.addEventListener('playerJoined', function(e) {
+                console.log('Player joined:', e.detail.player);
+                updatePlayerListFromSession();
+            });
+
+            window.addEventListener('playerLeft', function(e) {
+                console.log('Player left:', e.detail.player);
+                updatePlayerListFromSession();
+            });
+        }
+
+        // Update the players display
+        function updatePlayersDisplay() {
+            const playersGrid = document.getElementById('players-grid');
+            const noPlayersMsg = document.getElementById('no-players');
+            
+            playersGrid.innerHTML = '';
+            
+            if (players.length === 0) {
+                noPlayersMsg.style.display = 'block';
+            } else {
+                noPlayersMsg.style.display = 'none';
+                players.forEach(player => {
+                    const playerBadge = document.createElement('div');
+                    playerBadge.className = 'player-badge';
+                    playerBadge.textContent = player;
+                    playersGrid.appendChild(playerBadge);
+                });
+            }
+        }
+
+        // Update player count
+        function updatePlayerCount() {
+            document.getElementById('player-count').textContent = players.length;
+        }
+
+        // Update start button state
+        function updateStartButton() {
+            const startBtn = document.getElementById('start-btn');
+            if (players.length > 0 && !gameStarted) {
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Game';
+            } else {
+                startBtn.disabled = true;
+                startBtn.textContent = players.length === 0 ? 'Start Game' : 'Loading...';
+            }
+        }
+
+        // Start the game
+        async function startGame() {
+            try {
+                // Fetch players from the players table
+                const playerRows = await fetchPlayersFromTable(currentGameCode);
+                const totalPlayers = playerRows.length;
+
+                if (totalPlayers === 0) {
+                    alert('No players have joined yet!');
+                    return;
+                }
+
+                gameStarted = true;
+
+                // Synchronized start: set status to 'starting' and set start_time 5 seconds in the future
+                const startTime = Date.now() + 10000; // 10 seconds from now
+                let retries = 3;
+                let lastError = null;
+                let startTimeISO = new Date(startTime).toISOString();
+                while (retries > 0) {
+                    try {
+                        console.log('📡 Sending game start update to database (synchronized start)...');
+                        const result = await GameDB.updateGameSession(currentGameCode, {
+                            status: 'starting',
+                            start_time: startTimeISO
+                        });
+                        console.log('✅ Game session updated successfully:', result);
+                        break; // Success, exit retry loop
+                    } catch (error) {
+                        retries--;
+                        lastError = error;
+                        console.error(`❌ Failed to update game session, retries left: ${retries}`, error);
+                        console.error('Error details:', {
+                            message: error.message,
+                            code: error.code,
+                            details: error.details,
+                            hint: error.hint
+                        });
+                        if (retries === 0) {
+                            // Disable start button and show error
+                            const startBtn = document.getElementById('start-btn');
+                            if (startBtn) {
+                                startBtn.disabled = true;
+                                startBtn.textContent = 'Error!';
+                            }
+                            alert('Failed to start game due to a database error. Please refresh and try again.');
+                            throw error; // Re-throw if no retries left
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+                    }
+                }
+
+                updateStartButton();
+
+                // Immediately start the synchronized countdown for the host
+                showSynchronizedCountdown(startTimeISO);
+                // Also broadcast start immediately to connected players to reduce delay
+                if (window.sendStartBroadcast) {
+                    window.sendStartBroadcast(currentGameCode, startTimeISO);
+                }
+                
+            } catch (error) {
+                console.error('Error starting game:', error);
+                gameStarted = false;
+                updateStartButton();
+                // Error alert already shown above
+            }
+        }
+
+        // Register the gameSessionUpdated event listener at the top-level so it is always active
+        window.addEventListener('gameSessionUpdated', onHostGameSessionUpdated);
+
+        function onHostGameSessionUpdated(e) {
+            const session = e.detail.session;
+            if (session.status === 'starting' && session.start_time) {
+                showSynchronizedCountdown(session.start_time);
+            }
+        }
+
+        // Synchronized countdown function (ensure only one countdown runs)
+        let hostSynchronizedCountdownInterval = null;
+        function showSynchronizedCountdown(startTimeISO) {
+            // Hide main container and header ONLY when countdown actually begins
+            document.querySelector('.main-container').style.display = 'none';
+            document.querySelector('.header').style.display = 'none';
+            const countdownScreen = document.getElementById('quiz-countdown-screen');
+            countdownScreen.classList.add('active');
+            let countdown = 10; // total time until live question across topic (5s) + preview (5s)
+            const countdownElement = document.getElementById('quiz-countdown');
+            countdownElement.textContent = countdown;
+            const startTimestamp = new Date(startTimeISO).getTime();
+            const now = Date.now();
+            let delay = Math.max(0, startTimestamp - now);
+            if (hostSynchronizedCountdownInterval) {
+                clearInterval(hostSynchronizedCountdownInterval);
+                hostSynchronizedCountdownInterval = null;
+            }
+            hostSynchronizedCountdownInterval = setInterval(() => {
+                const now2 = Date.now();
+                const secondsLeft = Math.ceil((startTimestamp - now2) / 1000);
+                countdownElement.textContent = Math.max(0, secondsLeft);
+                // Switch to question preview when 5 seconds remain
+                if (secondsLeft <= 5) {
+                    clearInterval(hostSynchronizedCountdownInterval);
+                    hostSynchronizedCountdownInterval = null;
+                    countdownScreen.classList.remove('active');
+                    // Start the 5s question preview leading into live question
+                    const remaining = Math.max(0, secondsLeft);
+                    showQuestionPreview(Math.max(remaining, 5));
+                }
+            }, 250);
+        }
+
+        // Show question preview screen
+        async function showQuestionPreview(durationSeconds = 5) {
+            const previewScreen = document.getElementById('question-preview-screen');
+            const question = quizQuestions[currentQuestionIndex];
+            
+            // Update question content
+            previewScreen.querySelector('.quiz-title').textContent = question.title;
+            previewScreen.querySelector('.question-counter').textContent = `${currentQuestionIndex + 1}/${quizQuestions.length}`;
+            previewScreen.querySelector('.question-image').src = question.image;
+            
+            previewScreen.classList.add('active');
+            
+            let previewCountdown = durationSeconds;
+            
+            // Start preview timer bar animation
+            const timerBar = document.getElementById('preview-timer-bar');
+            timerBar.style.width = '100%';
+            timerBar.style.transitionDuration = `${durationSeconds}s`;
+            
+            setTimeout(() => {
+                timerBar.style.width = '0%';
+            }, 100);
+            
+            // Update quiz state for players
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'question-preview',
+                currentQuestion: currentQuestionIndex,
+                questionData: question,
+                countdown: previewCountdown
+            });
+            
+            const previewInterval = setInterval(async () => {
+                previewCountdown--;
+                if (previewCountdown > 0) {
+                    // Update countdown for players
+                    await GameDB.updateQuizState(currentGameCode, {
+                        phase: 'question-preview',
+                        currentQuestion: currentQuestionIndex,
+                        questionData: question,
+                        countdown: previewCountdown
+                    });
+                } else {
+                    clearInterval(previewInterval);
+                    previewScreen.classList.remove('active');
+                    showLiveQuestion();
+                }
+            }, 1000);
+        }
+
+        // Show live question screen
+        async function showLiveQuestion() {
+            const liveScreen = document.getElementById('live-question-screen');
+            const question = quizQuestions[currentQuestionIndex];
+            
+            // Update question content
+            liveScreen.querySelector('.quiz-title').textContent = question.title;
+            liveScreen.querySelector('.question-counter').textContent = `${currentQuestionIndex + 1}/${quizQuestions.length}`;
+            liveScreen.querySelector('.question-image').src = question.image;
+            
+            // Update answer options
+            const optionTexts = liveScreen.querySelectorAll('.option-text');
+            optionTexts[0].textContent = question.options[0]; // A
+            optionTexts[1].textContent = question.options[1]; // B
+            optionTexts[2].textContent = question.options[2]; // C
+            optionTexts[3].textContent = question.options[3]; // D
+            
+            liveScreen.classList.add('active');
+            // Mark game started when the question goes live
+            try { await GameDB.updateGameSession(currentGameCode, { status: 'started' }); } catch (e) { console.warn('Failed to set started status:', e); }
+            
+            // Update quiz state for players
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'live-question',
+                currentQuestion: currentQuestionIndex,
+                questionData: question
+            });
+            
+            // Start question timer (20 seconds for answering)
+            let questionTime = 20;
+            const timerElement = document.getElementById('question-timer');
+            timerElement.textContent = questionTime;
+            
+            questionTimer = setInterval(async () => {
+                questionTime--;
+                if (questionTime > 0) {
+                    timerElement.textContent = questionTime;
+                } else {
+                    clearInterval(questionTimer);
+                    liveScreen.classList.remove('active');
+                    showQuestionResults();
+                }
+            }, 1000);
+        }
+
+        // Show question results
+        async function showQuestionResults() {
+            const resultsScreen = document.getElementById('quiz-results-screen');
+            const question = quizQuestions[currentQuestionIndex];
+            
+            // Get answers from Supabase
+            const answers = await GameDB.getQuestionAnswers(currentGameCode, currentQuestionIndex);
+            
+            // Count answers
+            const answerCounts = [0, 0, 0, 0]; // A, B, C, D
+            answers.forEach(answer => {
+                const index = answer.answer.charCodeAt(0) - 65; // Convert A=0, B=1, etc.
+                if (index >= 0 && index < 4) {
+                    answerCounts[index]++;
+                }
+            });
+            
+            // Update answer bars
+            const maxCount = Math.max(...answerCounts, 1);
+            ['a', 'b', 'c', 'd'].forEach((letter, index) => {
+                const count = answerCounts[index];
+                const barElement = document.getElementById(`answer-${letter}-bar`);
+                const countElement = document.getElementById(`answer-${letter}-count`);
+                
+                if (barElement && countElement) {
+                    const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                    barElement.style.height = `${percentage}%`;
+                    countElement.textContent = count;
+                }
+            });
+            
+            // Update answer options with correct answer highlighting
+            ['a', 'b', 'c', 'd'].forEach((letter, index) => {
+                const optionElement = document.getElementById(`result-option-${letter}`);
+                const textElement = document.getElementById(`result-option-text-${letter}`);
+                
+                if (optionElement && textElement) {
+                    textElement.textContent = question.options[index];
+                    
+                    if (index === question.correct) {
+                        optionElement.classList.add('correct');
+                    } else {
+                        optionElement.classList.remove('correct');
+                    }
+                }
+            });
+            
+            resultsScreen.classList.add('active');
+
+            // Calculate and persist player scores (Kahoot-like scoring 500–1000)
+            try {
+                // Map player_id -> name
+                const { data: playerRows } = await window.supabaseClient
+                    .from('players')
+                    .select('player_id, name')
+                    .eq('game_code', currentGameCode);
+                const idToName = (playerRows || []).reduce((acc, r) => { acc[r.player_id] = r.name; return acc; }, {});
+                // Build score updates per name
+                const questionTimeLimit = 20; // seconds
+                const session = await GameDB.getGameSession(currentGameCode);
+                const scores = session?.scores || {};
+                answers.forEach(a => {
+                    const name = idToName[a.player_id];
+                    if (!name) return;
+                    const idx = ['A','B','C','D'].indexOf(a.answer);
+                    const isCorrect = idx === question.correct;
+                    let points = 0;
+                    if (isCorrect) {
+                        const t = Math.min(Number(a.time_taken || 0), questionTimeLimit);
+                        points = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
+                    }
+                    scores[name] = (scores[name] || 0) + points;
+                });
+                await GameDB.updateGameSession(currentGameCode, { scores });
+            } catch (e) {
+                console.warn('Failed to persist scores:', e);
+            }
+
+            // Update quiz state for players; include question data so clients can compute their result text
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'results',
+                currentQuestion: currentQuestionIndex,
+                questionData: question
+            });
+        }
+
+        // Show scoreboard screen
+        async function showScoreboard() {
+            document.getElementById('quiz-results-screen').classList.remove('active');
+            
+            const scoreboardScreen = document.getElementById('scoreboard-screen');
+            
+            // Update quiz state for players
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'scoreboard',
+                currentQuestion: currentQuestionIndex
+            });
+            
+            // Update player scores
+            updatePlayerScores();
+            
+            scoreboardScreen.classList.add('active');
+        }
+
+        // Update player scores (fetch players from players table, scores from game_sessions)
+        async function updatePlayerScores() {
+            try {
+                const [session, playerRows] = await Promise.all([
+                    GameDB.getGameSession(currentGameCode),
+                    fetchPlayersFromTable(currentGameCode)
+                ]);
+
+                const scores = (session && session.scores) || {};
+                const playerNames = (playerRows || []).map(p => p.name);
+
+                const playerScores = playerNames.map(name => ({
+                    name,
+                    score: scores[name] || 0
+                })).sort((a, b) => b.score - a.score);
+
+                const playerScoresContainer = document.getElementById('player-scores');
+                playerScoresContainer.innerHTML = '';
+
+                if (playerScores.length === 0) {
+                    playerScoresContainer.innerHTML = '<div class="no-scores">No player scores available</div>';
+                    return;
+                }
+
+                playerScores.forEach((player, index) => {
+                    const scoreItem = document.createElement('div');
+                    scoreItem.className = `score-item rank-${index + 1}`;
+
+                    let medalIcon = '';
+                    if (index === 0) {
+                        medalIcon = '<img src="assets/medal_1.png" alt="Gold Medal" class="medal-icon">';
+                    } else if (index === 1) {
+                        medalIcon = '<img src="assets/medal_2.png" alt="Silver Medal" class="medal-icon">';
+                    } else if (index === 2) {
+                        medalIcon = '<img src="assets/medal_3.png" alt="Bronze Medal" class="medal-icon">';
+                    }
+
+                    scoreItem.innerHTML = `
+                        ${medalIcon}
+                        <span class="player-name">${player.name}</span>
+                        <span class="player-score">${player.score}</span>
+                    `;
+
+                    playerScoresContainer.appendChild(scoreItem);
+                });
+            } catch (error) {
+                console.error('Error updating player scores:', error);
+            }
+        }
+
+        // Proceed to next question
+        async function proceedToNextQuestion() {
+            document.getElementById('scoreboard-screen').classList.remove('active');
+            
+            currentQuestionIndex++;
+            
+            if (currentQuestionIndex < quizQuestions.length) {
+                // Move to next question
+                setTimeout(() => showQuestionPreview(), 1000);
+            } else {
+                // Quiz ended - show final leaderboard
+                showFinalLeaderboard();
+            }
+        }
+
+        // Show final leaderboard with celebration
+        async function showFinalLeaderboard() {
+            document.getElementById('scoreboard-screen').classList.remove('active');
+            
+            const finalScreen = document.getElementById('final-leaderboard-screen');
+            
+            // Update quiz state for players
+            await GameDB.updateQuizState(currentGameCode, {
+                phase: 'final-results'
+            });
+            
+            finalScreen.classList.add('active');
+            
+            // Start confetti animation
+            createConfetti();
+            
+            // Update final scores
+            updateFinalPodium();
+        }
+
+        // Create confetti animation
+        function createConfetti() {
+            const duration = 15000; // 15 seconds
+            const animationEnd = Date.now() + duration;
+            const defaults = {
+                startVelocity: 30,
+                spread: 360,
+                ticks: 100,
+                zIndex: 9999
+            };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                if (Date.now() > animationEnd) {
+                    return clearInterval(interval);
+                }
+
+                confetti(Object.assign({}, defaults, {
+                    particleCount: 5,
+                    origin: {
+                        x: Math.random(),
+                        y: -0.1
+                    },
+                    colors: ['#ff595e', '#ffca3a', '#8ac926', '#1982c4', '#6a4c93']
+                }));
+            }, 250);
+        }
+
+        // Update final podium with top 3 players
+        async function updateFinalPodium() {
+            try {
+                const session = await GameDB.getGameSession(currentGameCode);
+                let finalScores = [];
+                
+                if (session && session.players && session.scores) {
+                    finalScores = session.players.map(player => {
+                        return {
+                            name: player.name,
+                            score: session.scores[player.name] || 0
+                        };
+                    }).sort((a, b) => b.score - a.score).slice(0, 3);
+                }
+                
+                // Default empty podium if no players
+                const defaultPlayers = [
+                    { name: '-', score: 0 },
+                    { name: '-', score: 0 },
+                    { name: '-', score: 0 }
+                ];
+                
+                // Fill missing positions with default values
+                while (finalScores.length < 3) {
+                    finalScores.push(defaultPlayers[finalScores.length]);
+                }
+                
+                // Update winner (1st place)
+                const firstPlace = document.querySelector('.first-place');
+                if (firstPlace) {
+                    firstPlace.querySelector('.podium-name').textContent = finalScores[0].name;
+                    firstPlace.querySelector('.podium-score').textContent = finalScores[0].score;
+                }
+                
+                // Update 2nd place
+                const secondPlace = document.querySelector('.second-place');
+                if (secondPlace) {
+                    secondPlace.querySelector('.podium-name').textContent = finalScores[1].name;
+                    secondPlace.querySelector('.podium-score').textContent = finalScores[1].score;
+                }
+                
+                // Update 3rd place
+                const thirdPlace = document.querySelector('.third-place');
+                if (thirdPlace) {
+                    thirdPlace.querySelector('.podium-name').textContent = finalScores[2].name;
+                    thirdPlace.querySelector('.podium-score').textContent = finalScores[2].score;
+                }
+            } catch (error) {
+                console.error('Error updating final podium:', error);
+            }
+        }
+
+        // Play again function
+        async function playAgain() {
+            document.getElementById('final-leaderboard-screen').classList.remove('active');
+            resetToWaitingRoom();
+        }
+
+        // Reset back to waiting room
+        async function resetToWaitingRoom() {
+            document.querySelectorAll('.quiz-screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            document.querySelector('.main-container').style.display = 'flex';
+            document.querySelector('.header').style.display = 'flex';
+            
+            gameStarted = false;
+            currentQuestionIndex = 0;
+            
+            // Clear player scores from session
+            try {
+                await GameDB.updateGameSession(currentGameCode, {
+                    scores: {},
+                    status: 'waiting'
+                });
+            } catch (error) {
+                console.error('Error resetting game session:', error);
+            }
+            
+            updateStartButton();
+        }
+
+        // Initialize the game
+        async function initializeGame() {
+            try {
+                // Clean up old games first
+                await GameDB.cleanupOldGames();
+                
+                await generateGameCode();
+                updatePlayersDisplay();
+                updatePlayerCount();
+                updateStartButton();
+                
+                // Start listening for players joining
+                startPlayerListener();
+                // Periodic refresh for player list (fallback for real-time)
+                setInterval(updatePlayerListFromSession, 3000);
+            } catch (error) {
+                console.error('Error during game initialization:', error);
+                alert('Failed to initialize game. Please refresh the page and try again.');
+            }
+        }
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                if (!document.getElementById('start-btn').disabled) {
+                    startGame();
+                }
+            }
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            cleanupSubscriptions();
+        });
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeGame);
+    </script>
+</body>
+</html> 
