@@ -277,6 +277,7 @@
         let lastSelectedAnswer = null;
         let lastAnswerTimeTaken = 0;
         let resultsPollingInterval = null;
+        let nextQuestionPollingInterval = null;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -526,6 +527,34 @@
                             }
                     updateScoreDisplay();
                         } catch {}
+                    }
+                } catch {}
+            }, 1000);
+        }
+
+        // While on scoreboard/loading screen, poll for next question preview to resync
+        function startNextQuestionPolling() {
+            if (nextQuestionPollingInterval) return;
+            nextQuestionPollingInterval = setInterval(async () => {
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    if (error) return;
+                    if (data && data.phase === 'question-preview') {
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
+                        showScreen('countdown-screen');
+                        if (typeof data.question_data?.countdown === 'number') {
+                            updateCountdownDisplay(data.question_data.countdown);
+                        }
+                        if (data.question_data) {
+                            updateQuestionContent(data.question_data);
+                        }
+                        // Begin preview->live fallback
+                        startPreviewPolling();
                     }
                 } catch {}
             }, 1000);
@@ -882,6 +911,8 @@
                     showScreen('loading-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
+                    // Start polling to catch transition to the next question preview
+                    startNextQuestionPolling();
                     break;
                     
                 case 'final-results':
