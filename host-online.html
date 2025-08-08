@@ -750,11 +750,41 @@
             });
             
             resultsScreen.classList.add('active');
-            
-            // Update quiz state for players
+
+            // Calculate and persist player scores (Kahoot-like scoring 500–1000)
+            try {
+                // Map player_id -> name
+                const { data: playerRows } = await window.supabaseClient
+                    .from('players')
+                    .select('player_id, name')
+                    .eq('game_code', currentGameCode);
+                const idToName = (playerRows || []).reduce((acc, r) => { acc[r.player_id] = r.name; return acc; }, {});
+                // Build score updates per name
+                const questionTimeLimit = 20; // seconds
+                const session = await GameDB.getGameSession(currentGameCode);
+                const scores = session?.scores || {};
+                answers.forEach(a => {
+                    const name = idToName[a.player_id];
+                    if (!name) return;
+                    const idx = ['A','B','C','D'].indexOf(a.answer);
+                    const isCorrect = idx === question.correct;
+                    let points = 0;
+                    if (isCorrect) {
+                        const t = Math.min(Number(a.time_taken || 0), questionTimeLimit);
+                        points = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
+                    }
+                    scores[name] = (scores[name] || 0) + points;
+                });
+                await GameDB.updateGameSession(currentGameCode, { scores });
+            } catch (e) {
+                console.warn('Failed to persist scores:', e);
+            }
+
+            // Update quiz state for players; include question data so clients can compute their result text
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'results',
-                currentQuestion: currentQuestionIndex
+                currentQuestion: currentQuestionIndex,
+                questionData: question
             });
         }
 

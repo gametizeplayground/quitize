@@ -798,6 +798,13 @@
                         }
                         const resultsMessage = document.getElementById('results-message');
                         if (resultsMessage) resultsMessage.textContent = message;
+                        // Also try to reflect persisted score from session if available
+                        GameDB.getGameSession(currentGameCode).then(session => {
+                            if (session && session.scores && session.scores[playerName] != null) {
+                                currentScore = session.scores[playerName];
+                                updateScoreDisplay();
+                            }
+                        });
                     } catch (e) { console.warn('Result display error:', e); }
                     updateScoreDisplay();
                     break;
