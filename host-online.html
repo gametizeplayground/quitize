@@ -59,7 +59,7 @@
             <div class="quiz-title">Fruits</div>
         </div>
         <div class="countdown-circle">
-            <span id="quiz-countdown">5</span>
+                <span id="quiz-countdown">10</span>
         </div>
     </div>
 
@@ -514,7 +514,7 @@
                 gameStarted = true;
 
                 // Synchronized start: set status to 'starting' and set start_time 5 seconds in the future
-                const startTime = Date.now() + 5000; // 5 seconds from now
+                const startTime = Date.now() + 10000; // 10 seconds from now
                 let retries = 3;
                 let lastError = null;
                 let startTimeISO = new Date(startTime).toISOString();
@@ -582,7 +582,7 @@
             document.querySelector('.header').style.display = 'none';
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
-            let countdown = 5;
+            let countdown = 10; // total time until live question across topic (5s) + preview (5s)
             const countdownElement = document.getElementById('quiz-countdown');
             countdownElement.textContent = countdown;
             const startTimestamp = new Date(startTimeISO).getTime();
@@ -596,19 +596,20 @@
                 const now2 = Date.now();
                 const secondsLeft = Math.ceil((startTimestamp - now2) / 1000);
                 countdownElement.textContent = Math.max(0, secondsLeft);
-                if (secondsLeft <= 0) {
+                // Switch to question preview when 5 seconds remain
+                if (secondsLeft <= 5) {
                     clearInterval(hostSynchronizedCountdownInterval);
                     hostSynchronizedCountdownInterval = null;
                     countdownScreen.classList.remove('active');
-                    // After countdown, update status to 'started' and proceed
-                    GameDB.updateGameSession(currentGameCode, { status: 'started' });
-                    showQuestionPreview(); // This will show the title preview with countdown
+                    // Start the 5s question preview leading into live question
+                    const remaining = Math.max(0, secondsLeft);
+                    showQuestionPreview(Math.max(remaining, 5));
                 }
             }, 250);
         }
 
         // Show question preview screen
-        async function showQuestionPreview() {
+        async function showQuestionPreview(durationSeconds = 5) {
             const previewScreen = document.getElementById('question-preview-screen');
             const question = quizQuestions[currentQuestionIndex];
             
@@ -619,12 +620,12 @@
             
             previewScreen.classList.add('active');
             
-            let previewCountdown = 5;
+            let previewCountdown = durationSeconds;
             
             // Start preview timer bar animation
             const timerBar = document.getElementById('preview-timer-bar');
             timerBar.style.width = '100%';
-            timerBar.style.transitionDuration = '5s';
+            timerBar.style.transitionDuration = `${durationSeconds}s`;
             
             setTimeout(() => {
                 timerBar.style.width = '0%';
@@ -674,6 +675,8 @@
             optionTexts[3].textContent = question.options[3]; // D
             
             liveScreen.classList.add('active');
+            // Mark game started when the question goes live
+            try { await GameDB.updateGameSession(currentGameCode, { status: 'started' }); } catch (e) { console.warn('Failed to set started status:', e); }
             
             // Update quiz state for players
             await GameDB.updateQuizState(currentGameCode, {

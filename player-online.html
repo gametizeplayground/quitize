@@ -157,7 +157,7 @@
         <div class="screen" id="countdown-screen">
             <div class="countdown-screen-content">
                 <h1 class="quiz-title">Quiz 1</h1>
-                <div class="countdown-number" id="countdown-display">5</div>
+                <div class="countdown-number" id="countdown-display">10</div>
                 <div class="countdown-mascot">
                     <img src="assets/getready_mascot.png" alt="Get Ready Mascot">
                 </div>
@@ -524,7 +524,7 @@
         function showSynchronizedCountdown(startTimeISO) {
             const countdownScreen = document.getElementById('countdown-screen');
             showScreen('countdown-screen');
-            let countdown = 5;
+            let countdown = 10;
             updateCountdownDisplay(countdown);
             const startTimestamp = new Date(startTimeISO).getTime();
             const now = Date.now();
@@ -542,8 +542,10 @@
                     // Hide the waiting room and prepare for quiz
                     const leaveBtn = document.querySelector('.leave-room-btn');
                     if (leaveBtn) leaveBtn.style.display = 'none';
-                    // Now waiting for quiz state updates...
+                    // Now waiting for quiz state updates... also start fallback polling
                     console.log('✅ Synchronized countdown complete. Now waiting for quiz state updates...');
+                    // Start fallback polling to ensure transition even if realtime misses events
+                    try { startPreviewPolling(); } catch (e) { console.warn('Could not start preview polling:', e); }
                 }
             }, 250);
         }
@@ -665,6 +667,7 @@
                         showScreen('question-screen');
                         updatePlayerDisplay();
                         updateScoreDisplay();
+                        questionStartTime = Date.now();
                         if (data.question_data) {
                             updateQuestionContent(data.question_data);
                         }
