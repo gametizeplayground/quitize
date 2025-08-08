@@ -806,33 +806,34 @@
             scoreboardScreen.classList.add('active');
         }
 
-        // Update player scores
+        // Update player scores (fetch players from players table, scores from game_sessions)
         async function updatePlayerScores() {
             try {
-                const session = await GameDB.getGameSession(currentGameCode);
-                let playerScores = [];
-                
-                if (session && session.players && session.scores) {
-                    playerScores = session.players.map(player => {
-                        return {
-                            name: player.name,
-                            score: session.scores[player.name] || 0
-                        };
-                    }).sort((a, b) => b.score - a.score);
-                }
-                
+                const [session, playerRows] = await Promise.all([
+                    GameDB.getGameSession(currentGameCode),
+                    fetchPlayersFromTable(currentGameCode)
+                ]);
+
+                const scores = (session && session.scores) || {};
+                const playerNames = (playerRows || []).map(p => p.name);
+
+                const playerScores = playerNames.map(name => ({
+                    name,
+                    score: scores[name] || 0
+                })).sort((a, b) => b.score - a.score);
+
                 const playerScoresContainer = document.getElementById('player-scores');
                 playerScoresContainer.innerHTML = '';
-                
+
                 if (playerScores.length === 0) {
                     playerScoresContainer.innerHTML = '<div class="no-scores">No player scores available</div>';
                     return;
                 }
-                
+
                 playerScores.forEach((player, index) => {
                     const scoreItem = document.createElement('div');
                     scoreItem.className = `score-item rank-${index + 1}`;
-                    
+
                     let medalIcon = '';
                     if (index === 0) {
                         medalIcon = '<img src="assets/medal_1.png" alt="Gold Medal" class="medal-icon">';
@@ -841,13 +842,13 @@
                     } else if (index === 2) {
                         medalIcon = '<img src="assets/medal_3.png" alt="Bronze Medal" class="medal-icon">';
                     }
-                    
+
                     scoreItem.innerHTML = `
                         ${medalIcon}
                         <span class="player-name">${player.name}</span>
                         <span class="player-score">${player.score}</span>
                     `;
-                    
+
                     playerScoresContainer.appendChild(scoreItem);
                 });
             } catch (error) {
