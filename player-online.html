@@ -688,6 +688,14 @@
             // Only attach game session updates here. The quiz state listener is
             // attached after the robust handler definition at the end of file.
             window.addEventListener('gameSessionUpdated', handleGameSessionUpdate);
+            // Start sync via broadcast event if available
+            window.addEventListener('gameStartBroadcast', (e) => {
+                const startTimeISO = e.detail?.start_time;
+                if (startTimeISO) {
+                    console.log('[Broadcast] Starting synchronized countdown from broadcast.');
+                    showSynchronizedCountdown(startTimeISO);
+                }
+            });
         }
 
         // Initialize the game

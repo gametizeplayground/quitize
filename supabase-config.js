@@ -16,6 +16,7 @@ const TABLES = {
 // Real-time subscription handlers
 let gameSessionSubscription = null;
 let quizStateSubscription = null;
+let startBroadcastChannel = null;
 
 // Expose subscriptions globally for debugging
 window.gameSessionSubscription = null;
@@ -97,6 +98,25 @@ function initializeGameSubscriptions(gameCode) {
     
     // Update global reference  
     window.quizStateSubscription = quizStateSubscription;
+
+    // Broadcast channel for instantaneous start sync
+    startBroadcastChannel = window.supabaseClient
+        .channel(`start_${gameCode}`, { config: { broadcast: { self: true } } })
+        .on('broadcast', { event: 'start' }, (payload) => {
+            try {
+                const startTime = payload?.payload?.start_time;
+                console.log('[Broadcast] Start received:', startTime);
+                window.dispatchEvent(new CustomEvent('gameStartBroadcast', {
+                    detail: { start_time: startTime, gameCode }
+                }));
+            } catch (e) {
+                console.warn('Broadcast handler error:', e);
+            }
+        })
+        .subscribe((status) => {
+            console.log('Start broadcast channel status:', status);
+        });
+    window.startBroadcastChannel = startBroadcastChannel;
 }
 
 // Clean up subscriptions
@@ -108,6 +128,10 @@ function cleanupSubscriptions() {
     if (quizStateSubscription) {
         window.supabaseClient.removeChannel(quizStateSubscription);
         quizStateSubscription = null;
+    }
+    if (startBroadcastChannel) {
+        window.supabaseClient.removeChannel(startBroadcastChannel);
+        startBroadcastChannel = null;
     }
 }
 
@@ -491,3 +515,12 @@ const GameDB = {
 window.GameDB = GameDB;
 window.initializeGameSubscriptions = initializeGameSubscriptions;
 window.cleanupSubscriptions = cleanupSubscriptions; 
+window.sendStartBroadcast = function sendStartBroadcast(gameCode, startTimeISO) {
+    try {
+        const channel = window.supabaseClient.channel(`start_${gameCode}`, { config: { broadcast: { self: true } } });
+        channel.subscribe((status) => console.log('Send start channel status:', status));
+        channel.send({ type: 'broadcast', event: 'start', payload: { start_time: startTimeISO, game_code: gameCode } });
+    } catch (e) {
+        console.warn('Failed to send start broadcast:', e);
+    }
+};

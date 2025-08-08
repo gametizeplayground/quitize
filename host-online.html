@@ -555,6 +555,10 @@
 
                 // Immediately start the synchronized countdown for the host
                 showSynchronizedCountdown(startTimeISO);
+                // Also broadcast start immediately to connected players to reduce delay
+                if (window.sendStartBroadcast) {
+                    window.sendStartBroadcast(currentGameCode, startTimeISO);
+                }
                 
             } catch (error) {
                 console.error('Error starting game:', error);
