@@ -471,100 +471,7 @@
             }
         }
 
-        // Handle quiz state updates
-        function handleQuizStateUpdate(payload) {
-            const { quizState } = payload.detail;
-            
-            console.log('🎯 === QUIZ STATE UPDATE ===');
-            console.log('Phase:', quizState.phase);
-            console.log('Countdown:', quizState.countdown);
-            console.log('Current Question:', quizState.currentQuestion);
-            console.log('Question Data:', quizState.questionData);
-            console.log('Current Screen:', document.querySelector('.screen.active')?.id);
-            console.log('==============================');
-            
-            // Extra debug logs
-            console.log('[DEBUG] handleQuizStateUpdate called with phase:', quizState.phase);
-            console.log('[DEBUG] All .screen elements:', Array.from(document.querySelectorAll('.screen')).map(e => e.id));
-            
-            switch (quizState.phase) {
-                case 'countdown':
-                    console.log('Moving to countdown phase');
-                    showScreen('countdown-screen');
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    
-                    // Update countdown number if available
-                    if (quizState.countdown !== undefined) {
-                        updateCountdownDisplay(quizState.countdown);
-                    }
-                    
-                    // Update quiz title
-                    const quizTitle = document.querySelector('#countdown-screen .quiz-title');
-                    if (quizTitle) {
-                        quizTitle.textContent = 'Quiz 1';
-                    }
-                    break;
-                case 'question-preview':
-                    console.log('Moving to question preview phase');
-                    showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    // Update countdown number if available
-                    if (quizState.countdown !== undefined) {
-                        updateCountdownDisplay(quizState.countdown);
-                    }
-                    // Update quiz title with question info
-                    const previewTitle = document.querySelector('#countdown-screen .quiz-title');
-                    if (previewTitle && quizState.questionData) {
-                        previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
-                    }
-                    break;
-                case 'live-question':
-                    console.log('Moving to live question phase');
-                    showScreen('question-screen');
-                    // Extra debug: check if question-screen is now active
-                    setTimeout(() => {
-                        const questionScreen = document.getElementById('question-screen');
-                        console.log('[DEBUG] question-screen classList:', questionScreen.classList);
-                        if (!questionScreen.classList.contains('active')) {
-                            console.warn('[FORCE] Forcing question-screen to active!');
-                            document.querySelectorAll('.screen').forEach(screen => {
-                                screen.classList.remove('active');
-                            });
-                            questionScreen.classList.add('active');
-                        } else {
-                            console.log('[DEBUG] question-screen is active.');
-                        }
-                    }, 100);
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    questionStartTime = Date.now();
-                    
-                    // Update question content if available
-                    if (quizState.questionData) {
-                        updateQuestionContent(quizState.questionData);
-                    }
-                    break;
-                case 'results':
-                    console.log('Moving to results phase');
-                    showScreen('results-screen');
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    break;
-                case 'scoreboard':
-                    console.log('Moving to scoreboard phase');
-                    showScreen('loading-screen');
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    break;
-                case 'final-results':
-                    console.log('Moving to final results phase');
-                    showScreen('final-results-screen');
-                    document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
-                    break;
-            }
-        }
+        // NOTE: The robust quiz state handler is defined later in the file.
 
         // Update countdown display
         function updateCountdownDisplay(count) {
@@ -687,7 +594,8 @@
 
         // Initialize event listeners
         function initializeEventListeners() {
-            window.addEventListener('quizStateUpdated', handleQuizStateUpdate);
+            // Only attach game session updates here. The quiz state listener is
+            // attached after the robust handler definition at the end of file.
             window.addEventListener('gameSessionUpdated', handleGameSessionUpdate);
         }
 
