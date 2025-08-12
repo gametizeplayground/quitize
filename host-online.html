@@ -970,36 +970,50 @@
         // Broadcast next question signal to players
         async function broadcastNextQuestion(questionIndex) {
             console.log('📡 Broadcasting next question signal to players:', questionIndex);
+            console.log('📡 Using game code:', currentGameCode);
             
             // Use Supabase broadcast channel for immediate communication
             try {
-                const channel = window.supabaseClient.channel(`next_question_${currentGameCode}`, { 
+                const channelName = `next_question_${currentGameCode}`;
+                console.log('📡 Creating broadcast channel:', channelName);
+                
+                const channel = window.supabaseClient.channel(channelName, { 
                     config: { broadcast: { self: true } } 
                 });
                 
                 await channel.subscribe((status) => {
-                    console.log('Next question broadcast channel status:', status);
+                    console.log('📡 Next question broadcast channel status:', status);
+                    if (status === 'SUBSCRIBED') {
+                        console.log('✅ Broadcast channel subscribed successfully');
+                    }
                 });
+                
+                const payload = {
+                    game_code: currentGameCode,
+                    question_index: questionIndex,
+                    timestamp: Date.now()
+                };
+                
+                console.log('📡 Sending broadcast payload:', payload);
                 
                 await channel.send({
                     type: 'broadcast',
                     event: 'next_question',
-                    payload: {
-                        game_code: currentGameCode,
-                        question_index: questionIndex,
-                        timestamp: Date.now()
-                    }
+                    payload: payload
                 });
                 
                 console.log('✅ Next question broadcast sent successfully');
+                console.log('📡 Players should now receive the signal and transition to countdown');
                 
                 // Clean up channel after a short delay
                 setTimeout(() => {
+                    console.log('🧹 Cleaning up broadcast channel');
                     window.supabaseClient.removeChannel(channel);
                 }, 2000);
                 
             } catch (error) {
                 console.error('❌ Failed to broadcast next question:', error);
+                console.error('❌ Error details:', error.message, error.stack);
                 throw error;
             }
         }

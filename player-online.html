@@ -557,6 +557,95 @@
             }, 1000);
         }
 
+        // Super aggressive polling specifically for scoreboard to next question transition
+        let scoreboardToNextPollingInterval = null;
+        function startScoreboardToNextQuestionPolling() {
+            if (scoreboardToNextPollingInterval) {
+                console.log('[SCOREBOARD POLL] Scoreboard to next question polling already active');
+                return;
+            }
+            
+            console.log('[SCOREBOARD POLL] 🚨 Starting SUPER AGGRESSIVE scoreboard to next question polling...');
+            scoreboardToNextPollingInterval = setInterval(async () => {
+                try {
+                    console.log('[SCOREBOARD POLL] 🔍 Checking for next question transition...');
+                    const { data, error } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    
+                    if (error) {
+                        console.error('[SCOREBOARD POLL] ❌ Database error:', error);
+                        return;
+                    }
+                    
+                    console.log('[SCOREBOARD POLL] ✅ Raw DB data received:', data);
+                    console.log('[SCOREBOARD POLL] Phase:', data?.phase);
+                    console.log('[SCOREBOARD POLL] Current Question:', data?.current_question);
+                    console.log('[SCOREBOARD POLL] Countdown:', data?.countdown);
+                    
+                    if (data && data.phase === 'question-preview') {
+                        console.log('[SCOREBOARD POLL] 🎯 DETECTED QUESTION-PREVIEW! HOST CLICKED NEXT!');
+                        
+                        // Clear this aggressive polling
+                        clearInterval(scoreboardToNextPollingInterval);
+                        scoreboardToNextPollingInterval = null;
+                        
+                        // Reset player state
+                        answerSubmitted = false;
+                        lastSelectedAnswer = null;
+                        lastAnswerTimeTaken = 0;
+                        lastQuestionSeen = data.current_question;
+                        
+                        // Force transition to countdown screen immediately
+                        console.log('[SCOREBOARD POLL] 🚀 FORCING TRANSITION TO COUNTDOWN SCREEN');
+                        document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                        document.getElementById('countdown-screen').classList.add('active');
+                        
+                        // Reset countdown tracking
+                        resetCountdownTracking();
+                        
+                        // Update countdown display
+                        const countdown = data.countdown || data.question_data?.countdown || 10;
+                        updateCountdownDisplay(countdown, 'scoreboard-poll');
+                        
+                        // Update quiz title
+                        const quizTitle = document.querySelector('#countdown-screen .quiz-title');
+                        if (quizTitle && data.current_question !== null) {
+                            quizTitle.textContent = `Question ${data.current_question + 1}`;
+                        }
+                        
+                        // Update question content if available
+                        if (data.question_data) {
+                            updateQuestionContent(data.question_data);
+                        }
+                        
+                        // Start preview polling to handle the countdown
+                        startPreviewPolling();
+                        
+                        console.log('[SCOREBOARD POLL] ✅ Successfully transitioned to countdown screen!');
+                        return;
+                    }
+                    
+                    // Also check for direct final-results transition
+                    if (data && data.phase === 'final-results') {
+                        console.log('[SCOREBOARD POLL] 🎉 Direct transition to final results detected!');
+                        clearInterval(scoreboardToNextPollingInterval);
+                        scoreboardToNextPollingInterval = null;
+                        
+                        resetCountdownTracking();
+                        showScreen('final-results-screen');
+                        await updateFinalResults();
+                        return;
+                    }
+                    
+                } catch (error) {
+                    console.error('[SCOREBOARD POLL] ❌ Exception:', error);
+                }
+            }, 50); // Poll every 50ms for ultra-fast response!
+        }
+
         // While on scoreboard/loading screen, poll for next question preview to resync
         function startNextQuestionPolling() {
             if (nextQuestionPollingInterval) {
@@ -821,7 +910,14 @@
                         const { game_code, question_index, timestamp } = payload.payload;
                         
                         if (game_code === currentGameCode) {
-                            console.log('🚀 HOST CLICKED NEXT! Immediately transitioning to next question...');
+                            console.log('🚀 HOST CLICKED NEXT! BROADCAST RECEIVED! Immediately transitioning...');
+                            
+                            // Clear any existing scoreboard polling since we got the broadcast
+                            if (scoreboardToNextPollingInterval) {
+                                clearInterval(scoreboardToNextPollingInterval);
+                                scoreboardToNextPollingInterval = null;
+                                console.log('🛑 Cleared scoreboard polling due to broadcast');
+                            }
                             
                             // Immediately reset answer state and transition
                             answerSubmitted = false;
@@ -837,7 +933,9 @@
                             // Start aggressive polling for the question-preview state
                             startNextQuestionPolling();
                             
-                            console.log('✅ Player ready for next question transition');
+                            console.log('✅ Player ready for next question transition via broadcast');
+                        } else {
+                            console.log('❌ Broadcast game code mismatch:', game_code, 'vs', currentGameCode);
                         }
                     })
                     .subscribe((status) => {
@@ -884,6 +982,10 @@
             if (nextQuestionPollingInterval) {
                 clearInterval(nextQuestionPollingInterval);
                 nextQuestionPollingInterval = null;
+            }
+            if (scoreboardToNextPollingInterval) {
+                clearInterval(scoreboardToNextPollingInterval);
+                scoreboardToNextPollingInterval = null;
             }
             if (finalResultsPollingInterval) {
                 clearInterval(finalResultsPollingInterval);
@@ -1258,12 +1360,14 @@
                         // Start polling for final-results phase more aggressively
                         startFinalResultsPolling();
                     } else {
-                        console.log('➡️ More questions remaining, preparing for next question...');
-                        // Show loading screen and start polling for next question
+                        console.log('➡️ More questions remaining, waiting for host to click Next...');
+                        // Show loading screen and IMMEDIATELY start aggressive polling for next question
                         showScreen('loading-screen');
                         const loadingTitle = document.querySelector('#loading-screen .loading-title');
-                        if (loadingTitle) loadingTitle.textContent = 'Preparing next question...';
-                        startNextQuestionPolling();
+                        if (loadingTitle) loadingTitle.textContent = 'Waiting for host...';
+                        
+                        // Start SUPER AGGRESSIVE polling for next question (faster than normal)
+                        startScoreboardToNextQuestionPolling();
                     }
                     
                     updatePlayerDisplay();
