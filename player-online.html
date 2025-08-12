@@ -889,6 +889,10 @@
                 clearInterval(finalResultsPollingInterval);
                 finalResultsPollingInterval = null;
             }
+            if (resultsTransitionPollingInterval) {
+                clearInterval(resultsTransitionPollingInterval);
+                resultsTransitionPollingInterval = null;
+            }
             if (resultsPollingInterval) {
                 clearInterval(resultsPollingInterval);
                 resultsPollingInterval = null;
@@ -1221,12 +1225,23 @@
                     } catch (e) { console.warn('Result display error:', e); }
                     updateScoreDisplay();
                     if (resultsPollingInterval) { clearInterval(resultsPollingInterval); resultsPollingInterval = null; }
+                    
+                    // After showing results, start polling for either scoreboard or final-results
+                    console.log('🔍 Starting transition polling from results screen...');
+                    startResultsTransitionPolling();
                     break;
                     
                 case 'scoreboard':
                     console.log('Moving to scoreboard phase');
                     console.log('Current screen during scoreboard:', document.querySelector('.screen.active')?.id);
                     resetCountdownTracking();
+                    
+                    // Stop results transition polling since we've reached scoreboard
+                    if (resultsTransitionPollingInterval) {
+                        clearInterval(resultsTransitionPollingInterval);
+                        resultsTransitionPollingInterval = null;
+                        console.log('🛑 Stopped results transition polling');
+                    }
                     
                     // Check if this is the last question - if so, prepare for final results
                     const totalQuestions = 2; // Update this to match your quiz length
@@ -1309,10 +1324,83 @@
                     
                 case 'final-results':
                     console.log('Moving to final results phase');
+                    resetCountdownTracking();
+                    
+                    // Stop all polling intervals since we've reached final results
+                    if (resultsTransitionPollingInterval) {
+                        clearInterval(resultsTransitionPollingInterval);
+                        resultsTransitionPollingInterval = null;
+                    }
+                    if (finalResultsPollingInterval) {
+                        clearInterval(finalResultsPollingInterval);
+                        finalResultsPollingInterval = null;
+                    }
+                    if (nextQuestionPollingInterval) {
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
+                    }
+                    
                     showScreen('final-results-screen');
                     await updateFinalResults();
                     break;
             }
+        }
+
+        // Start polling for transition from results screen (either to scoreboard or final-results)
+        let resultsTransitionPollingInterval = null;
+        function startResultsTransitionPolling() {
+            if (resultsTransitionPollingInterval) {
+                console.log('[RESULTS TRANSITION] Polling already active');
+                return;
+            }
+            
+            console.log('[RESULTS TRANSITION] 🔄 Starting transition polling from results screen...');
+            resultsTransitionPollingInterval = setInterval(async () => {
+                try {
+                    console.log('[RESULTS TRANSITION] 🔍 Checking for phase changes...');
+                    const { data, error } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    
+                    if (error) {
+                        console.error('[RESULTS TRANSITION] ❌ Database error:', error);
+                        return;
+                    }
+                    
+                    console.log('[RESULTS TRANSITION] 📊 Current phase:', data?.phase);
+                    console.log('[RESULTS TRANSITION] 📊 Current question:', data?.current_question);
+                    
+                    if (data && data.phase === 'scoreboard') {
+                        console.log('[RESULTS TRANSITION] ➡️ Detected scoreboard phase');
+                        clearInterval(resultsTransitionPollingInterval);
+                        resultsTransitionPollingInterval = null;
+                        
+                        // Trigger the scoreboard handler manually
+                        handleQuizStateUpdate({
+                            detail: {
+                                gameCode: currentGameCode,
+                                quizState: {
+                                    phase: data.phase,
+                                    currentQuestion: data.current_question,
+                                    questionData: data.question_data
+                                }
+                            }
+                        });
+                    } else if (data && data.phase === 'final-results') {
+                        console.log('[RESULTS TRANSITION] 🎉 Detected final-results phase directly!');
+                        clearInterval(resultsTransitionPollingInterval);
+                        resultsTransitionPollingInterval = null;
+                        
+                        resetCountdownTracking();
+                        showScreen('final-results-screen');
+                        await updateFinalResults();
+                    }
+                } catch (err) {
+                    console.error('[RESULTS TRANSITION] Exception:', err);
+                }
+            }, 200); // Fast polling for immediate response
         }
 
         // Start polling specifically for final results phase

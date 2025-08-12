@@ -912,7 +912,7 @@ body::before {
     }
 
     .welcome-text {
-        font-size: 3.2rem !important;
+        font-size: 2.5rem !important;
         margin-top: 2rem !important;
         line-height: 1.1 !important;
         letter-spacing: -0.5px !important;
@@ -1712,7 +1712,7 @@ body::before {
     }
 
     .welcome-text {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         margin-bottom: 1rem;
     }
 
