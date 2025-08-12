@@ -585,8 +585,18 @@
                         // Begin preview->live fallback
                         startPreviewPolling();
                     }
-                } catch {}
-            }, 250); // Very fast polling for immediate response
+                    // Also check for final-results phase to handle quiz end
+                    else if (data && data.phase === 'final-results') {
+                        console.log('[POLL] ✅ Detected final-results phase! Game ended.');
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
+                        showScreen('final-results-screen');
+                        document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
+                    }
+                } catch (err) {
+                    console.error('[POLL] Exception during polling:', err);
+                }
+            }, 100); // Even faster polling (100ms) for immediate response during transitions
         }
 
         // NOTE: The robust quiz state handler is defined later in the file.
@@ -1029,32 +1039,47 @@
                     startNextQuestionPolling();
                     
                     // Also check immediately in case the question-preview phase is already active
-                    setTimeout(async () => {
-                        try {
-                            console.log('[IMMEDIATE CHECK] Checking for question-preview phase...');
-                            const { data, error } = await window.supabaseClient
-                                .from('quiz_states')
-                                .select('*')
-                                .eq('game_code', currentGameCode)
-                                .single();
-                            if (!error && data && data.phase === 'question-preview') {
-                                console.log('[IMMEDIATE CHECK] Found question-preview! Transitioning...');
-                                showScreen('countdown-screen');
-                                answerSubmitted = false;
-                                enableOptionButtons();
-                                if (typeof data.countdown === 'number') {
-                                    updateCountdownDisplay(data.countdown);
+                    // Check multiple times with short intervals to catch rapid state changes
+                    const immediateChecks = [50, 200, 500, 1000]; // Check at 50ms, 200ms, 500ms, and 1s
+                    immediateChecks.forEach(delay => {
+                        setTimeout(async () => {
+                            try {
+                                console.log(`[IMMEDIATE CHECK ${delay}ms] Checking for question-preview phase...`);
+                                const { data, error } = await window.supabaseClient
+                                    .from('quiz_states')
+                                    .select('*')
+                                    .eq('game_code', currentGameCode)
+                                    .single();
+                                if (!error && data && data.phase === 'question-preview') {
+                                    console.log(`[IMMEDIATE CHECK ${delay}ms] Found question-preview! Transitioning...`);
+                                    
+                                    // Clear polling since we found the state change
+                                    if (nextQuestionPollingInterval) {
+                                        clearInterval(nextQuestionPollingInterval);
+                                        nextQuestionPollingInterval = null;
+                                    }
+                                    
+                                    showScreen('countdown-screen');
+                                    answerSubmitted = false;
+                                    enableOptionButtons();
+                                    if (typeof data.countdown === 'number') {
+                                        updateCountdownDisplay(data.countdown);
+                                    }
+                                    const quizTitle = document.querySelector('#countdown-screen .quiz-title');
+                                    if (quizTitle && data.question_data) {
+                                        const questionNumber = (data.current_question !== null && data.current_question !== undefined) ? data.current_question + 1 : 1;
+                                        quizTitle.textContent = `Question ${questionNumber}`;
+                                    }
+                                    if (data.question_data) {
+                                        updateQuestionContent(data.question_data);
+                                    }
+                                    startPreviewPolling();
                                 }
-                                const quizTitle = document.querySelector('#countdown-screen .quiz-title');
-                                if (quizTitle && data.question_data) {
-                                    const questionNumber = (data.current_question !== null && data.current_question !== undefined) ? data.current_question + 1 : 1;
-                                    quizTitle.textContent = `Question ${questionNumber}`;
-                                }
+                            } catch (e) {
+                                console.error(`[IMMEDIATE CHECK ${delay}ms] Error:`, e);
                             }
-                        } catch (e) {
-                            console.error('[IMMEDIATE CHECK] Error:', e);
-                        }
-                    }, 100);
+                        }, delay);
+                    });
                     break;
                     
                 case 'final-results':

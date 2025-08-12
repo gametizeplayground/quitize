@@ -886,6 +886,21 @@
         async function startNextQuestionCountdown() {
             // For next questions, go directly to question preview with 10-second countdown
             // (Generic countdown screen is only for the very first question)
+            
+            // IMMEDIATELY update quiz state to ensure players get notified
+            try {
+                console.log('🔄 Updating quiz state for next question transition...');
+                await GameDB.updateQuizState(currentGameCode, {
+                    phase: 'question-preview',
+                    currentQuestion: currentQuestionIndex,
+                    questionData: quizQuestions[currentQuestionIndex],
+                    countdown: 10
+                });
+                console.log('✅ Quiz state updated for next question');
+            } catch (error) {
+                console.error('❌ Failed to update quiz state for next question:', error);
+            }
+            
             showQuestionPreview(10);
         }
 
