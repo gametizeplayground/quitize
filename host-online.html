@@ -1038,16 +1038,35 @@
         // Update final podium with top 3 players
         async function updateFinalPodium() {
             try {
-                const session = await GameDB.getGameSession(currentGameCode);
+                console.log('🏆 Updating final podium for game:', currentGameCode);
+                
+                // Get both session data (for scores) and player data
+                const [session, playerRows] = await Promise.all([
+                    GameDB.getGameSession(currentGameCode),
+                    fetchPlayersFromTable(currentGameCode)
+                ]);
+                
+                console.log('📊 Session data:', session);
+                console.log('👥 Player rows:', playerRows);
+                
                 let finalScores = [];
                 
-                if (session && session.players && session.scores) {
-                    finalScores = session.players.map(player => {
+                if (session && session.scores && playerRows && playerRows.length > 0) {
+                    // Create final scores array from players table and session scores
+                    finalScores = playerRows.map(player => {
+                        const score = session.scores[player.name] || 0;
+                        console.log(`📈 Player ${player.name}: ${score} points`);
                         return {
                             name: player.name,
-                            score: session.scores[player.name] || 0
+                            score: score
                         };
                     }).sort((a, b) => b.score - a.score).slice(0, 3);
+                    
+                    console.log('🎯 Final scores (top 3):', finalScores);
+                } else {
+                    console.warn('⚠️ Missing session scores or player data');
+                    console.log('Session scores:', session?.scores);
+                    console.log('Player rows:', playerRows);
                 }
                 
                 // Default empty podium if no players
@@ -1062,11 +1081,14 @@
                     finalScores.push(defaultPlayers[finalScores.length]);
                 }
                 
+                console.log('🏅 Final podium data:', finalScores);
+                
                 // Update winner (1st place)
                 const firstPlace = document.querySelector('.first-place');
                 if (firstPlace) {
                     firstPlace.querySelector('.podium-name').textContent = finalScores[0].name;
                     firstPlace.querySelector('.podium-score').textContent = finalScores[0].score;
+                    console.log('🥇 1st place updated:', finalScores[0]);
                 }
                 
                 // Update 2nd place
@@ -1074,6 +1096,7 @@
                 if (secondPlace) {
                     secondPlace.querySelector('.podium-name').textContent = finalScores[1].name;
                     secondPlace.querySelector('.podium-score').textContent = finalScores[1].score;
+                    console.log('🥈 2nd place updated:', finalScores[1]);
                 }
                 
                 // Update 3rd place
@@ -1081,9 +1104,12 @@
                 if (thirdPlace) {
                     thirdPlace.querySelector('.podium-name').textContent = finalScores[2].name;
                     thirdPlace.querySelector('.podium-score').textContent = finalScores[2].score;
+                    console.log('🥉 3rd place updated:', finalScores[2]);
                 }
+                
+                console.log('✅ Final podium update complete!');
             } catch (error) {
-                console.error('Error updating final podium:', error);
+                console.error('❌ Error updating final podium:', error);
             }
         }
 
