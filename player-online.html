@@ -408,6 +408,7 @@
         // Play again
         function playAgain() {
             cleanupSubscriptions();
+            cleanupPollingIntervals();
             window.location.href = 'player-online.html';
         }
 
@@ -609,7 +610,7 @@
                         // Get countdown from multiple possible locations
                         const countdown = data.countdown || data.question_data?.countdown || 10;
                         console.log('[POLL] Countdown value:', countdown);
-                        updateCountdownDisplay(countdown);
+                        updateCountdownDisplay(countdown, 'polling');
                         
                         // Update quiz title with correct question number
                         const quizTitle = document.querySelector('#countdown-screen .quiz-title');
@@ -659,30 +660,48 @@
 
         // NOTE: The robust quiz state handler is defined later in the file.
 
+        // Track the last countdown value to prevent flicker
+        let lastCountdownValue = -1;
+        let countdownUpdateSource = null;
+
+        // Reset countdown tracking when changing phases
+        function resetCountdownTracking() {
+            lastCountdownValue = -1;
+            countdownUpdateSource = null;
+        }
+
         // Update countdown display
-        function updateCountdownDisplay(count) {
-            console.log('🕐 Updating countdown display to:', count);
+        function updateCountdownDisplay(count, source = 'unknown') {
+            // Prevent rapid updates that cause flicker
+            if (count === lastCountdownValue && source === countdownUpdateSource) {
+                return; // Skip if same value from same source
+            }
             
-            // Method 1: Update by class
+            // Don't allow countdown to go backwards unless it's a reset (10, 9, 8...)
+            if (count > lastCountdownValue && lastCountdownValue > 0 && count < 10) {
+                console.log('🚫 Preventing countdown from going backwards:', lastCountdownValue, '->', count);
+                return;
+            }
+            
+            console.log('🕐 Updating countdown display to:', count, 'from source:', source);
+            lastCountdownValue = count;
+            countdownUpdateSource = source;
+            
+            // Update by ID (primary method)
+            const countdownById = document.getElementById('countdown-display');
+            if (countdownById) {
+                countdownById.textContent = count;
+            }
+            
+            // Update by class (fallback)
             const countdownElements = document.querySelectorAll('.countdown-number');
-            console.log('Found countdown elements by class:', countdownElements.length);
             countdownElements.forEach(element => {
-                if (element) {
-                    console.log('Updating element:', element);
+                if (element && element !== countdownById) {
                     element.textContent = count;
                 }
             });
             
-            // Method 2: Update by ID (fallback)
-            const countdownById = document.getElementById('countdown-display');
-            if (countdownById) {
-                console.log('Updating countdown by ID:', countdownById);
-                countdownById.textContent = count;
-            } else {
-                console.error('❌ Countdown element not found by ID!');
-            }
-            
-            console.log('✅ Countdown update complete');
+            console.log('✅ Countdown update complete:', count);
         }
 
         // Update question content
@@ -718,7 +737,7 @@
             const countdownScreen = document.getElementById('countdown-screen');
             showScreen('countdown-screen');
             let countdown = 10;
-            updateCountdownDisplay(countdown);
+            updateCountdownDisplay(countdown, 'synchronized');
             const startTimestamp = new Date(startTimeISO).getTime();
             const now = Date.now();
             let delay = Math.max(0, startTimestamp - now);
@@ -726,7 +745,7 @@
             synchronizedCountdownInterval = setInterval(() => {
                 const now2 = Date.now();
                 const secondsLeft = Math.ceil((startTimestamp - now2) / 1000);
-                updateCountdownDisplay(Math.max(0, secondsLeft));
+                updateCountdownDisplay(Math.max(0, secondsLeft), 'synchronized-tick');
                 if (secondsLeft <= 0) {
                     clearInterval(synchronizedCountdownInterval);
                     synchronizedCountdownInterval = null;
@@ -860,9 +879,38 @@
             initializeEventListeners();
         }
 
+        // Clean up polling intervals
+        function cleanupPollingIntervals() {
+            if (nextQuestionPollingInterval) {
+                clearInterval(nextQuestionPollingInterval);
+                nextQuestionPollingInterval = null;
+            }
+            if (finalResultsPollingInterval) {
+                clearInterval(finalResultsPollingInterval);
+                finalResultsPollingInterval = null;
+            }
+            if (resultsPollingInterval) {
+                clearInterval(resultsPollingInterval);
+                resultsPollingInterval = null;
+            }
+            if (previewPollingInterval) {
+                clearInterval(previewPollingInterval);
+                previewPollingInterval = null;
+            }
+            if (waitingRoomPollingInterval) {
+                clearInterval(waitingRoomPollingInterval);
+                waitingRoomPollingInterval = null;
+            }
+            if (synchronizedCountdownInterval) {
+                clearInterval(synchronizedCountdownInterval);
+                synchronizedCountdownInterval = null;
+            }
+        }
+
         // Clean up on page unload
         window.addEventListener('beforeunload', function() {
             cleanupSubscriptions();
+            cleanupPollingIntervals();
         });
 
         // Initialize when page loads
@@ -977,6 +1025,7 @@
                 case 'countdown':
                     // This case is now only for the initial game start countdown
                     console.log('Moving to countdown phase (initial game start)');
+                    resetCountdownTracking();
                     showScreen('countdown-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
@@ -985,7 +1034,7 @@
                     
                     // Update countdown number if available
                     if (quizState.countdown !== undefined) {
-                        updateCountdownDisplay(quizState.countdown);
+                        updateCountdownDisplay(quizState.countdown, 'quiz-state-countdown');
                     }
                     
                     // Update quiz title - for initial countdown, show generic title
@@ -1007,6 +1056,7 @@
                 case 'question-preview':
                     console.log('Moving to question preview phase');
                     console.log('Current screen before transition:', document.querySelector('.screen.active')?.id);
+                    resetCountdownTracking();
                     showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
                     console.log('Screen after transition:', document.querySelector('.screen.active')?.id);
                     updatePlayerDisplay();
@@ -1015,7 +1065,7 @@
                     enableOptionButtons(); // Re-enable buttons for new question
                     
                     if (quizState.countdown !== undefined) {
-                        updateCountdownDisplay(quizState.countdown);
+                        updateCountdownDisplay(quizState.countdown, 'quiz-state-preview');
                     }
                     const previewTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (previewTitle && quizState.questionData) {
@@ -1034,7 +1084,7 @@
                             const target = new Date(liveStartISO).getTime();
                             const tick = () => {
                                 const secondsLeft = Math.ceil((target - Date.now()) / 1000);
-                                updateCountdownDisplay(Math.max(0, secondsLeft));
+                                updateCountdownDisplay(Math.max(0, secondsLeft), 'precise-sync');
                                 if (secondsLeft <= 0) {
                                     showScreen('question-screen');
                                     updatePlayerDisplay();
@@ -1131,6 +1181,7 @@
                     
                 case 'results':
                     console.log('Moving to results phase');
+                    resetCountdownTracking();
                     showScreen('results-screen');
                     updatePlayerDisplay();
                     // Compute and display result locally
@@ -1175,18 +1226,33 @@
                 case 'scoreboard':
                     console.log('Moving to scoreboard phase');
                     console.log('Current screen during scoreboard:', document.querySelector('.screen.active')?.id);
+                    resetCountdownTracking();
                     
-                    // Immediately show loading screen and start polling for next question
-                    showScreen('loading-screen');
-                    const loadingTitle = document.querySelector('#loading-screen .loading-title');
-                    if (loadingTitle) loadingTitle.textContent = 'Preparing next question...';
+                    // Check if this is the last question - if so, prepare for final results
+                    const totalQuestions = 2; // Update this to match your quiz length
+                    const currentQuestionNum = (quizState.currentQuestion || 0) + 1;
+                    console.log('📊 Question progress:', currentQuestionNum, '/', totalQuestions);
+                    
+                    if (currentQuestionNum >= totalQuestions) {
+                        console.log('🏁 Last question completed! Waiting for final results...');
+                        // Show loading screen but prepare for final results
+                        showScreen('loading-screen');
+                        const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                        if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
+                        
+                        // Start polling for final-results phase more aggressively
+                        startFinalResultsPolling();
+                    } else {
+                        console.log('➡️ More questions remaining, preparing for next question...');
+                        // Show loading screen and start polling for next question
+                        showScreen('loading-screen');
+                        const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                        if (loadingTitle) loadingTitle.textContent = 'Preparing next question...';
+                        startNextQuestionPolling();
+                    }
                     
                     updatePlayerDisplay();
                     updateScoreDisplay();
-                    
-                    console.log('Starting next question polling...');
-                    // Start polling to catch transition to the next question countdown/preview
-                    startNextQuestionPolling();
                     
                     // Also check immediately in case the question-preview phase is already active
                     // Check multiple times with short intervals to catch rapid state changes
@@ -1222,7 +1288,7 @@
                                     // Get countdown from multiple possible locations
                                     const countdown = data.countdown || data.question_data?.countdown || 10;
                                     console.log(`[IMMEDIATE CHECK ${delay}ms] Countdown value:`, countdown);
-                                    updateCountdownDisplay(countdown);
+                                    updateCountdownDisplay(countdown, 'immediate-check');
                                     
                                     const quizTitle = document.querySelector('#countdown-screen .quiz-title');
                                     if (quizTitle && data.question_data) {
@@ -1247,6 +1313,46 @@
                     await updateFinalResults();
                     break;
             }
+        }
+
+        // Start polling specifically for final results phase
+        let finalResultsPollingInterval = null;
+        function startFinalResultsPolling() {
+            if (finalResultsPollingInterval) {
+                console.log('[FINAL POLL] Final results polling already active');
+                return;
+            }
+            
+            console.log('[FINAL POLL] 🏁 Starting final results polling...');
+            finalResultsPollingInterval = setInterval(async () => {
+                try {
+                    console.log('[FINAL POLL] 🔍 Checking for final-results phase...');
+                    const { data, error } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    
+                    if (error) {
+                        console.error('[FINAL POLL] ❌ Database error:', error);
+                        return;
+                    }
+                    
+                    console.log('[FINAL POLL] 📊 Phase:', data?.phase);
+                    
+                    if (data && data.phase === 'final-results') {
+                        console.log('[FINAL POLL] 🎉 Final results phase detected! Transitioning...');
+                        clearInterval(finalResultsPollingInterval);
+                        finalResultsPollingInterval = null;
+                        
+                        resetCountdownTracking();
+                        showScreen('final-results-screen');
+                        await updateFinalResults();
+                    }
+                } catch (err) {
+                    console.error('[FINAL POLL] Exception:', err);
+                }
+            }, 200); // Very fast polling for final results (200ms)
         }
 
         // Update final results screen with player ranking and badges
