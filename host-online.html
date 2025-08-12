@@ -1116,7 +1116,35 @@
         // Play again function
         async function playAgain() {
             document.getElementById('final-leaderboard-screen').classList.remove('active');
-            resetToWaitingRoom();
+            
+            console.log('🔄 Play Again: Starting fresh game...');
+            
+            try {
+                // Clean up current game completely (remove all players and data)
+                console.log('🧹 Cleaning up current game:', currentGameCode);
+                await GameDB.cleanupExistingGame(currentGameCode);
+                
+                // Clean up subscriptions for the old game
+                cleanupSubscriptions();
+                
+                // Reset all game state
+                players = [];
+                gameStarted = false;
+                currentQuestionIndex = 0;
+                
+                // Generate a new game code and create new session
+                console.log('🎮 Generating new game code...');
+                await generateGameCode();
+                
+                // Reset to waiting room with new game
+                resetToWaitingRoom();
+                
+                console.log('✅ New game created with code:', currentGameCode);
+                
+            } catch (error) {
+                console.error('❌ Error creating new game:', error);
+                alert('Error creating new game. Please refresh the page.');
+            }
         }
 
         // Reset back to waiting room
