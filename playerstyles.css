@@ -692,7 +692,7 @@ body::before {
 
 .result-title {
     color: white;
-    font-size: 4rem;
+    font-size: 3.5rem;
     font-weight: 700;
     margin-top: 8rem;
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -1001,7 +1001,7 @@ body::before {
     }
 
     .quiz-title {
-        font-size: 3rem !important;
+        font-size: 2.0rem !important;
         margin-bottom: 0 !important;
         padding: 0 0.8rem !important;
     }
@@ -1059,7 +1059,7 @@ body::before {
     }
 
     .result-title {
-        font-size: 3rem !important;
+        font-size: 2.5rem !important;
         margin-bottom: 0 !important;
         line-height: 1 !important;
     }
@@ -1469,7 +1469,7 @@ body::before {
     }
 
     .quiz-title {
-        font-size: 2.5rem !important;
+        font-size: 2.0rem !important;
         margin-bottom: 0 !important;
         padding: 0 1rem !important;
     }
@@ -1527,7 +1527,7 @@ body::before {
     }
 
     .result-title {
-        font-size: 5rem !important;
+        font-size: 3.8rem !important;
         margin-bottom: 0 !important;
         line-height: 1 !important;
     }
