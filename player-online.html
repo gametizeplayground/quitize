@@ -552,8 +552,9 @@
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
                         showScreen('countdown-screen');
-                        if (typeof data.question_data?.countdown === 'number') {
-                            updateCountdownDisplay(data.question_data.countdown);
+                        // Countdown comes from root-level `countdown` in quiz_state
+                        if (typeof data.countdown === 'number') {
+                            updateCountdownDisplay(data.countdown);
                         }
                         if (data.question_data) {
                             updateQuestionContent(data.question_data);
@@ -934,6 +935,9 @@
                     console.log('Moving to results phase');
                     showScreen('results-screen');
                     updatePlayerDisplay();
+                    // While showing results, proactively start polling for the next question
+                    // in case realtime misses the scoreboard/preview events
+                    startNextQuestionPolling();
                     // Compute and display result locally
                     try {
                         const question = quizState.questionData;
