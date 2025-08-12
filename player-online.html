@@ -249,7 +249,21 @@
         <div class="screen" id="final-results-screen">
             <div class="final-results-content">
                 <h1 class="quiz-title">Game Over!</h1>
-                <div class="final-score" id="final-score">Your final score: 0</div>
+                
+                <!-- Player's Final Position and Badge -->
+                <div class="player-final-position">
+                    <div class="final-rank" id="final-rank">4th</div>
+                    <div class="final-badge" id="final-badge">
+                        <!-- Badge will be shown only for top 3 -->
+                    </div>
+                </div>
+                
+                <!-- Player Name and Score -->
+                <div class="final-player-info">
+                    <div class="final-player-name" id="final-player-name">Player</div>
+                    <div class="final-score" id="final-score">0 points</div>
+                </div>
+                
                 <button class="play-again-btn" onclick="playAgain()">Play Again</button>
             </div>
             
@@ -635,7 +649,7 @@
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
                         showScreen('final-results-screen');
-                        document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
+                        await updateFinalResults();
                     }
                 } catch (err) {
                     console.error('[POLL] Exception during polling:', err);
@@ -931,7 +945,7 @@
         }
 
         // In handleQuizStateUpdate, start polling if entering preview
-        function handleQuizStateUpdate(payload) {
+        async function handleQuizStateUpdate(payload) {
             const { quizState } = payload.detail;
             console.log('🎯 === QUIZ STATE UPDATE ===');
             console.log('Phase:', quizState.phase);
@@ -1230,10 +1244,107 @@
                 case 'final-results':
                     console.log('Moving to final results phase');
                     showScreen('final-results-screen');
-                    document.getElementById('final-score').textContent = `Your final score: ${currentScore}`;
+                    await updateFinalResults();
                     break;
             }
         }
+
+        // Update final results screen with player ranking and badges
+        async function updateFinalResults() {
+            try {
+                console.log('🏆 Updating final results for player:', playerName);
+                
+                // Get session data and all players to calculate ranking
+                const [session, playerRows] = await Promise.all([
+                    GameDB.getGameSession(currentGameCode),
+                    fetchPlayersFromTable(currentGameCode)
+                ]);
+                
+                console.log('📊 Final session data:', session);
+                console.log('👥 All players:', playerRows);
+                
+                // Get current player's score
+                const playerScore = session?.scores?.[playerName] || 0;
+                console.log('🎯 Player score:', playerScore);
+                
+                // Calculate all player rankings
+                let allPlayers = [];
+                if (session && session.scores && playerRows && playerRows.length > 0) {
+                    allPlayers = playerRows.map(player => ({
+                        name: player.name,
+                        score: session.scores[player.name] || 0
+                    })).sort((a, b) => b.score - a.score);
+                }
+                
+                console.log('📈 All players ranked:', allPlayers);
+                
+                // Find current player's position
+                const playerPosition = allPlayers.findIndex(p => p.name === playerName) + 1;
+                console.log('🏅 Player position:', playerPosition);
+                
+                // Update player name and score
+                document.getElementById('final-player-name').textContent = playerName;
+                document.getElementById('final-score').textContent = `${playerScore} points`;
+                
+                // Update ranking display
+                const rankElement = document.getElementById('final-rank');
+                const badgeElement = document.getElementById('final-badge');
+                
+                // Show ranking with proper suffix
+                const getRankSuffix = (pos) => {
+                    if (pos === 1) return '1st';
+                    if (pos === 2) return '2nd';
+                    if (pos === 3) return '3rd';
+                    return `${pos}th`;
+                };
+                
+                rankElement.textContent = getRankSuffix(playerPosition);
+                
+                // Show badge for top 3 players
+                badgeElement.innerHTML = '';
+                if (playerPosition === 1) {
+                    badgeElement.innerHTML = '<img src="assets/medal_1.png" alt="Gold Medal" class="final-medal">';
+                    rankElement.style.color = '#FFD700'; // Gold
+                } else if (playerPosition === 2) {
+                    badgeElement.innerHTML = '<img src="assets/medal_2.png" alt="Silver Medal" class="final-medal">';
+                    rankElement.style.color = '#C0C0C0'; // Silver
+                } else if (playerPosition === 3) {
+                    badgeElement.innerHTML = '<img src="assets/medal_3.png" alt="Bronze Medal" class="final-medal">';
+                    rankElement.style.color = '#CD7F32'; // Bronze
+                } else {
+                    rankElement.style.color = '#666'; // Default gray for other positions
+                }
+                
+                console.log('✅ Final results updated successfully');
+                
+            } catch (error) {
+                console.error('❌ Error updating final results:', error);
+                // Fallback display
+                document.getElementById('final-player-name').textContent = playerName;
+                document.getElementById('final-score').textContent = `${currentScore} points`;
+                document.getElementById('final-rank').textContent = '-';
+            }
+        }
+
+        // Helper function to fetch players from table (copied from host)
+        async function fetchPlayersFromTable(gameCode) {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('players')
+                    .select('*')
+                    .eq('game_code', gameCode);
+
+                if (error) {
+                    console.error('Error fetching players:', error);
+                    return [];
+                }
+                return data;
+            } catch (error) {
+                console.error('Error in fetchPlayersFromTable:', error);
+                return [];
+            }
+        }
+
         window.addEventListener('quizStateUpdated', handleQuizStateUpdate);
     </script>
 </body>
