@@ -6,6 +6,25 @@ ALTER TABLE IF EXISTS players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS answers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS quiz_states ENABLE ROW LEVEL SECURITY;
 
+-- Add missing columns to existing tables (if they don't already exist)
+DO $$ 
+BEGIN
+    -- Add start_time column to game_sessions if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'game_sessions' AND column_name = 'start_time') THEN
+        ALTER TABLE game_sessions ADD COLUMN start_time TIMESTAMP WITH TIME ZONE;
+    END IF;
+    
+    -- Add countdown column to quiz_states if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'countdown') THEN
+        ALTER TABLE quiz_states ADD COLUMN countdown INTEGER;
+    END IF;
+    
+    -- Add time_left column to quiz_states if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'time_left') THEN
+        ALTER TABLE quiz_states ADD COLUMN time_left INTEGER;
+    END IF;
+END $$;
+
 -- Game Sessions Table
 CREATE TABLE IF NOT EXISTS game_sessions (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -13,6 +32,7 @@ CREATE TABLE IF NOT EXISTS game_sessions (
     players JSONB DEFAULT '[]',
     scores JSONB DEFAULT '{}',
     status VARCHAR(20) DEFAULT 'waiting',
+    start_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -47,6 +67,8 @@ CREATE TABLE IF NOT EXISTS quiz_states (
     phase VARCHAR(20) DEFAULT 'waiting',
     current_question INTEGER DEFAULT 0,
     question_data JSONB,
+    countdown INTEGER,
+    time_left INTEGER,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     FOREIGN KEY (game_code) REFERENCES game_sessions(game_code) ON DELETE CASCADE
 );

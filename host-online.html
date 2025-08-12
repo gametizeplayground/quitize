@@ -648,6 +648,8 @@
             
             const previewInterval = setInterval(async () => {
                 previewCountdown--;
+                console.log('🕐 Preview countdown:', previewCountdown);
+                
                 if (previewCountdown > 0) {
                     // Update countdown for players
                     await GameDB.updateQuizState(currentGameCode, {
@@ -657,27 +659,34 @@
                         countdown: previewCountdown
                     });
                 } else {
+                    console.log('🎯 Preview countdown finished! Transitioning to live question...');
                     clearInterval(previewInterval);
                     previewScreen.classList.remove('active');
                     
-                    // IMMEDIATELY update quiz state to live-question before any delays
-                    console.log('🔄 Countdown finished! Immediately updating to live-question phase...');
-                    try {
-                        await GameDB.updateQuizState(currentGameCode, {
-                            phase: 'live-question',
-                            currentQuestion: currentQuestionIndex,
-                            questionData: question
-                        });
-                        console.log('✅ Quiz state updated to live-question');
-                    } catch (error) {
-                        console.error('❌ Failed to update quiz state to live-question:', error);
+                    // Calculate delay for precise timing, but cap it at 2 seconds max to prevent hanging
+                    const delayMs = Math.max(0, Math.min(2000, liveStartTs - Date.now()));
+                    console.log('⏰ Calculated delay for live start:', delayMs, 'ms');
+                    
+                    if (delayMs > 0) {
+                        setTimeout(() => {
+                            console.log('🚀 Starting live question via timeout...');
+                            showLiveQuestion();
+                        }, delayMs);
+                    } else {
+                        // Start immediately if delay is 0 or negative
+                        console.log('🚀 Starting live question immediately...');
+                        showLiveQuestion();
                     }
                     
-                    // Start live exactly at the shared timestamp
-                    const delayMs = Math.max(0, liveStartTs - Date.now());
+                    // Fallback: ensure live question starts within 3 seconds no matter what
                     setTimeout(() => {
-                        showLiveQuestion();
-                    }, delayMs);
+                        console.log('🔄 Fallback check: ensuring live question started...');
+                        const currentActiveScreen = document.querySelector('.quiz-screen.active');
+                        if (currentActiveScreen && currentActiveScreen.id !== 'live-question-screen') {
+                            console.warn('🚨 Live question not active, forcing transition!');
+                            showLiveQuestion();
+                        }
+                    }, 3000);
                 }
             }, 1000);
         }

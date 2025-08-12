@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Database Schema</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <h1>Database Schema Update</h1>
+    <button id="update-btn" onclick="updateSchema()">Update Schema</button>
+    <div id="output"></div>
+
+    <script>
+        async function updateSchema() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Updating schema...</p>';
+            
+            try {
+                // Add missing columns to existing tables
+                const alterQueries = [
+                    `
+                    DO $$ 
+                    BEGIN
+                        -- Add start_time column to game_sessions if it doesn't exist
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'game_sessions' AND column_name = 'start_time') THEN
+                            ALTER TABLE game_sessions ADD COLUMN start_time TIMESTAMP WITH TIME ZONE;
+                        END IF;
+                        
+                        -- Add countdown column to quiz_states if it doesn't exist
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'countdown') THEN
+                            ALTER TABLE quiz_states ADD COLUMN countdown INTEGER;
+                        END IF;
+                        
+                        -- Add time_left column to quiz_states if it doesn't exist
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'time_left') THEN
+                            ALTER TABLE quiz_states ADD COLUMN time_left INTEGER;
+                        END IF;
+                    END $$;
+                    `
+                ];
+                
+                for (const query of alterQueries) {
+                    console.log('Executing query:', query);
+                    const { error } = await window.supabaseClient.rpc('exec_sql', { sql: query });
+                    if (error) {
+                        console.error('Error executing query:', error);
+                        output.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+                    } else {
+                        output.innerHTML += `<p style="color: green;">Schema updated successfully!</p>`;
+                    }
+                }
+                
+                // Test if columns exist by querying the table structure
+                const { data: gameSessionsColumns } = await window.supabaseClient
+                    .from('information_schema.columns')
+                    .select('column_name')
+                    .eq('table_name', 'game_sessions');
+                    
+                const { data: quizStatesColumns } = await window.supabaseClient
+                    .from('information_schema.columns')
+                    .select('column_name')
+                    .eq('table_name', 'quiz_states');
+                
+                output.innerHTML += '<h3>Current Schema:</h3>';
+                output.innerHTML += '<h4>game_sessions columns:</h4>';
+                output.innerHTML += '<ul>' + (gameSessionsColumns || []).map(col => `<li>${col.column_name}</li>`).join('') + '</ul>';
+                
+                output.innerHTML += '<h4>quiz_states columns:</h4>';
+                output.innerHTML += '<ul>' + (quizStatesColumns || []).map(col => `<li>${col.column_name}</li>`).join('') + '</ul>';
+                
+            } catch (error) {
+                console.error('Schema update error:', error);
+                output.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
