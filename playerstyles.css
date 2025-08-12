@@ -889,15 +889,29 @@ body::before {
         height: 30px !important;
     }
 
+    /* === MAIN CONTAINER === */
+    .container {
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+        padding: 0 5px !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
     /* === MAIN CONTENT === */
     .main-content {
         max-width: 450px !important;
         padding: 0 10px !important;
+        justify-content: center !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
     }
 
     .mascot-container {
-        margin-top: 11rem !important;
-        margin-bottom: 1rem !important;
+        margin-top: 12rem !important;
+        margin-bottom: 0.5rem !important;
     }
 
     .mascot {
@@ -913,7 +927,8 @@ body::before {
 
     .welcome-text {
         font-size: 2.0rem !important;
-        margin-top: 2rem !important;
+        margin-top: 3rem !important;
+        margin-bottom: 1rem !important;
         line-height: 1.1 !important;
         letter-spacing: -0.5px !important;
     }
@@ -929,8 +944,8 @@ body::before {
 
     /* === FORM CONTAINER - Controls gap between input and button === */
     .form-container {
-        gap: 1.2rem !important;
-        margin-bottom: 1rem !important;
+        gap: 1rem !important;
+        margin-bottom: 0.5rem !important;
         width: 100% !important;
         max-width: 300px !important;
     }
