@@ -649,6 +649,44 @@
                 console.error('❌ Countdown element not found by ID!');
             }
             
+            // EMERGENCY FALLBACK: If countdown reaches 0 and we're still on countdown screen,
+            // force transition to question screen after a short delay
+            if (count <= 0) {
+                console.log('🚨 Countdown reached 0! Setting up emergency fallback transition...');
+                setTimeout(async () => {
+                    const currentScreen = document.querySelector('.screen.active')?.id;
+                    console.log('🚨 Emergency check - current screen:', currentScreen);
+                    if (currentScreen === 'countdown-screen') {
+                        console.log('🚨 EMERGENCY: Still on countdown screen after countdown finished! Force transition to question screen...');
+                        
+                        // Check if live-question phase is active in database
+                        try {
+                            const { data, error } = await window.supabaseClient
+                                .from('quiz_states')
+                                .select('*')
+                                .eq('game_code', currentGameCode)
+                                .single();
+                            console.log('🚨 Emergency database check:', data);
+                            
+                            if (!error && data && data.phase === 'live-question') {
+                                console.log('🚨 Live question phase detected! Force transition now...');
+                                document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                                document.getElementById('question-screen').classList.add('active');
+                                updatePlayerDisplay();
+                                updateScoreDisplay();
+                                questionStartTime = Date.now();
+                                enableOptionButtons();
+                                if (data.question_data) {
+                                    updateQuestionContent(data.question_data);
+                                }
+                            }
+                        } catch (e) {
+                            console.error('🚨 Emergency check failed:', e);
+                        }
+                    }
+                }, 2000); // Wait 2 seconds after countdown reaches 0
+            }
+            
             console.log('✅ Countdown update complete');
         }
 
@@ -818,6 +856,7 @@
 
         function startPreviewPolling() {
             if (previewPollingInterval) return;
+            console.log('[PREVIEW POLL] Starting preview polling to detect live-question transition...');
             previewPollingInterval = setInterval(async () => {
                 try {
                     const { data, error } = await window.supabaseClient
@@ -826,18 +865,25 @@
                         .eq('game_code', currentGameCode)
                         .single();
                     if (error) {
-                        console.error('[POLL] Error polling quiz_states:', error);
+                        console.error('[PREVIEW POLL] Error polling quiz_states:', error);
                         return;
                     }
-                    console.log('[POLL] Polled quiz_states:', data);
+                    console.log('[PREVIEW POLL] Polled quiz_states:', data);
+                    console.log('[PREVIEW POLL] Current phase:', data?.phase, 'Current screen:', document.querySelector('.screen.active')?.id);
+                    
                     if (data && data.phase === 'live-question') {
-                        console.warn('[POLL] Forcing transition to question-screen from poll!');
+                        console.log('[PREVIEW POLL] ✅ Detected live-question phase! Transitioning to question screen...');
                         clearInterval(previewPollingInterval);
                         previewPollingInterval = null;
                         
                         // Only transition if answer hasn't been submitted
                         if (!answerSubmitted) {
-                            showScreen('question-screen');
+                            // Force screen transition
+                            console.log('[PREVIEW POLL] Current screen before force transition:', document.querySelector('.screen.active')?.id);
+                            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                            document.getElementById('question-screen').classList.add('active');
+                            console.log('[PREVIEW POLL] Screen changed to question-screen');
+                            
                             updatePlayerDisplay();
                             updateScoreDisplay();
                             questionStartTime = Date.now();
@@ -845,12 +891,29 @@
                             if (data.question_data) {
                                 updateQuestionContent(data.question_data);
                             }
+                            
+                            // Also trigger the quiz state update handler manually
+                            console.log('[PREVIEW POLL] Manually triggering quiz state update handler...');
+                            try {
+                                handleQuizStateUpdate({
+                                    detail: {
+                                        gameCode: currentGameCode,
+                                        quizState: {
+                                            phase: data.phase,
+                                            currentQuestion: data.current_question,
+                                            questionData: data.question_data
+                                        }
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('[PREVIEW POLL] Error triggering manual quiz state update:', e);
+                            }
                         }
                     }
                 } catch (err) {
-                    console.error('[POLL] Exception during polling:', err);
+                    console.error('[PREVIEW POLL] Exception during polling:', err);
                 }
-            }, 2000);
+            }, 250); // Very fast polling (250ms) to catch the transition quickly
         }
 
         // In handleQuizStateUpdate, start polling if entering preview

@@ -659,6 +659,20 @@
                 } else {
                     clearInterval(previewInterval);
                     previewScreen.classList.remove('active');
+                    
+                    // IMMEDIATELY update quiz state to live-question before any delays
+                    console.log('🔄 Countdown finished! Immediately updating to live-question phase...');
+                    try {
+                        await GameDB.updateQuizState(currentGameCode, {
+                            phase: 'live-question',
+                            currentQuestion: currentQuestionIndex,
+                            questionData: question
+                        });
+                        console.log('✅ Quiz state updated to live-question');
+                    } catch (error) {
+                        console.error('❌ Failed to update quiz state to live-question:', error);
+                    }
+                    
                     // Start live exactly at the shared timestamp
                     const delayMs = Math.max(0, liveStartTs - Date.now());
                     setTimeout(() => {
