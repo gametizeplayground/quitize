@@ -539,8 +539,12 @@
 
         // While on scoreboard/loading screen, poll for next question preview to resync
         function startNextQuestionPolling() {
-            if (nextQuestionPollingInterval) return;
-            console.log('[POLL] Starting aggressive polling for next question...');
+            if (nextQuestionPollingInterval) {
+                console.log('[POLL] Next question polling already active');
+                return;
+            }
+            
+            console.log('[POLL] Starting next question polling...');
             nextQuestionPollingInterval = setInterval(async () => {
                 try {
                     const { data, error } = await window.supabaseClient
@@ -548,34 +552,31 @@
                         .select('*')
                         .eq('game_code', currentGameCode)
                         .single();
-                    
                     if (error) {
-                        console.log('[POLL] Error:', error);
+                        console.error('[POLL] Database error:', error);
                         return;
                     }
-                    
-                    console.log('[POLL] Current phase:', data?.phase, 'Question:', data?.current_question, 'Countdown:', data?.countdown);
+                    console.log('[POLL] Checking phase:', data?.phase, 'Current screen:', document.querySelector('.screen.active')?.id);
                     
                     if (data && data.phase === 'question-preview') {
-                        console.log('[POLL] ✅ DETECTED question-preview phase! Transitioning now...');
+                        console.log('[POLL] ✅ Detected question-preview phase! Transitioning from results to countdown...');
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
                         
                         showScreen('countdown-screen');
+                        console.log('[POLL] Screen changed to countdown-screen');
                         answerSubmitted = false;
                         enableOptionButtons();
                         
                         if (typeof data.countdown === 'number') {
                             updateCountdownDisplay(data.countdown);
-                            console.log('[POLL] Updated countdown to:', data.countdown);
                         }
                         
                         // Update quiz title with correct question number
                         const quizTitle = document.querySelector('#countdown-screen .quiz-title');
                         if (quizTitle && data.question_data) {
-                            const questionNumber = (data.current_question || 0) + 1;
+                            const questionNumber = (data.current_question !== null && data.current_question !== undefined) ? data.current_question + 1 : 1;
                             quizTitle.textContent = `Question ${questionNumber}`;
-                            console.log('[POLL] Updated title to: Question', questionNumber);
                         }
                         
                         if (data.question_data) {
@@ -584,10 +585,8 @@
                         // Begin preview->live fallback
                         startPreviewPolling();
                     }
-                } catch (err) {
-                    console.error('[POLL] Exception:', err);
-                }
-            }, 200); // Very aggressive polling every 200ms
+                } catch {}
+            }, 250); // Very fast polling for immediate response
         }
 
         // NOTE: The robust quiz state handler is defined later in the file.
@@ -828,11 +827,6 @@
             console.log('Current Screen:', document.querySelector('.screen.active')?.id);
             console.log('Answer Submitted:', answerSubmitted);
             console.log('==============================');
-            
-            // Special check for question-preview phase
-            if (quizState.phase === 'question-preview') {
-                console.log('🎯 REAL-TIME DETECTED QUESTION-PREVIEW PHASE!');
-            }
             // Clear any previous fallback
             if (previewFallbackTimeout) {
                 clearTimeout(previewFallbackTimeout);
@@ -874,8 +868,10 @@
                     }
                     break;
                 case 'question-preview':
-                    console.log('🎯 REAL-TIME: Moving to question preview phase!');
+                    console.log('Moving to question preview phase');
+                    console.log('Current screen before transition:', document.querySelector('.screen.active')?.id);
                     showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
+                    console.log('Screen after transition:', document.querySelector('.screen.active')?.id);
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     answerSubmitted = false; // Reset for new question
@@ -883,20 +879,16 @@
                     
                     if (quizState.countdown !== undefined) {
                         updateCountdownDisplay(quizState.countdown);
-                        console.log('🎯 REAL-TIME: Updated countdown to:', quizState.countdown);
                     }
                     const previewTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (previewTitle && quizState.questionData) {
-                        const questionNumber = (quizState.currentQuestion || 0) + 1;
-                        previewTitle.textContent = `Question ${questionNumber}`;
-                        console.log('🎯 REAL-TIME: Updated title to: Question', questionNumber);
+                        previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
                     }
                     
-                    // Clear any previous polling intervals since real-time worked
+                    // Clear any previous polling intervals
                     if (nextQuestionPollingInterval) {
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
-                        console.log('🎯 REAL-TIME: Stopped polling since real-time update worked');
                     }
                     // If host provided a precise live start time, synchronize to it
                     try {
@@ -1022,7 +1014,9 @@
                     
                 case 'scoreboard':
                     console.log('Moving to scoreboard phase');
-                    // Immediately move to loading screen to prepare for next question
+                    console.log('Current screen during scoreboard:', document.querySelector('.screen.active')?.id);
+                    
+                    // Immediately show loading screen and start polling for next question
                     showScreen('loading-screen');
                     const loadingTitle = document.querySelector('#loading-screen .loading-title');
                     if (loadingTitle) loadingTitle.textContent = 'Preparing next question...';
@@ -1030,46 +1024,37 @@
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     
-                    // Immediately check if next question is already available (backup check)
+                    console.log('Starting next question polling...');
+                    // Start polling to catch transition to the next question countdown/preview
+                    startNextQuestionPolling();
+                    
+                    // Also check immediately in case the question-preview phase is already active
                     setTimeout(async () => {
                         try {
+                            console.log('[IMMEDIATE CHECK] Checking for question-preview phase...');
                             const { data, error } = await window.supabaseClient
                                 .from('quiz_states')
                                 .select('*')
                                 .eq('game_code', currentGameCode)
                                 .single();
-                            
-                            console.log('[IMMEDIATE CHECK] Current phase:', data?.phase, 'Question:', data?.current_question);
-                            
-                            if (data && data.phase === 'question-preview') {
-                                console.log('[IMMEDIATE CHECK] ✅ Found question-preview! Transitioning immediately...');
+                            if (!error && data && data.phase === 'question-preview') {
+                                console.log('[IMMEDIATE CHECK] Found question-preview! Transitioning...');
                                 showScreen('countdown-screen');
                                 answerSubmitted = false;
                                 enableOptionButtons();
-                                
                                 if (typeof data.countdown === 'number') {
                                     updateCountdownDisplay(data.countdown);
                                 }
-                                
                                 const quizTitle = document.querySelector('#countdown-screen .quiz-title');
                                 if (quizTitle && data.question_data) {
-                                    const questionNumber = (data.current_question || 0) + 1;
+                                    const questionNumber = (data.current_question !== null && data.current_question !== undefined) ? data.current_question + 1 : 1;
                                     quizTitle.textContent = `Question ${questionNumber}`;
                                 }
-                                
-                                if (data.question_data) {
-                                    updateQuestionContent(data.question_data);
-                                }
-                                startPreviewPolling();
-                                return; // Don't start next question polling
                             }
-                        } catch (err) {
-                            console.error('[IMMEDIATE CHECK] Error:', err);
+                        } catch (e) {
+                            console.error('[IMMEDIATE CHECK] Error:', e);
                         }
-                        
-                        // If no question-preview found, start polling
-                        startNextQuestionPolling();
-                    }, 100); // Check after 100ms
+                    }, 100);
                     break;
                     
                 case 'final-results':
