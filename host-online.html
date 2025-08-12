@@ -874,12 +874,19 @@
             currentQuestionIndex++;
             
             if (currentQuestionIndex < quizQuestions.length) {
-                // Move to next question immediately (no delay)
-                showQuestionPreview();
+                // Start 10-second countdown for next question
+                await startNextQuestionCountdown();
             } else {
                 // Quiz ended - show final leaderboard
                 showFinalLeaderboard();
             }
+        }
+
+        // Start 10-second countdown before next question
+        async function startNextQuestionCountdown() {
+            // For next questions, go directly to question preview with 10-second countdown
+            // (Generic countdown screen is only for the very first question)
+            showQuestionPreview(10);
         }
 
         // Show final leaderboard with celebration

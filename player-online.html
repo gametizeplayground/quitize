@@ -551,11 +551,22 @@
                     if (data && data.phase === 'question-preview') {
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
+                        
+                        console.log('[POLL] Detected question-preview phase');
                         showScreen('countdown-screen');
-                        // Countdown comes from root-level `countdown` in quiz_state
+                        answerSubmitted = false;
+                        enableOptionButtons();
+                        
                         if (typeof data.countdown === 'number') {
                             updateCountdownDisplay(data.countdown);
                         }
+                        
+                        // Update quiz title with correct question number
+                        const quizTitle = document.querySelector('#countdown-screen .quiz-title');
+                        if (quizTitle && data.question_data) {
+                            quizTitle.textContent = `Question ${(data.current_question || 0) + 1}`;
+                        }
+                        
                         if (data.question_data) {
                             updateQuestionContent(data.question_data);
                         }
@@ -814,21 +825,33 @@
             }
             switch (quizState.phase) {
                 case 'countdown':
-                    console.log('Moving to countdown phase');
+                    // This case is now only for the initial game start countdown
+                    console.log('Moving to countdown phase (initial game start)');
                     showScreen('countdown-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     answerSubmitted = false; // Reset for new question
+                    enableOptionButtons(); // Re-enable buttons for new question
                     
                     // Update countdown number if available
                     if (quizState.countdown !== undefined) {
                         updateCountdownDisplay(quizState.countdown);
                     }
                     
-                    // Update quiz title
+                    // Update quiz title - for initial countdown, show generic title
                     const quizTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (quizTitle) {
-                        quizTitle.textContent = 'Quiz 1';
+                        if (quizState.questionData) {
+                            quizTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
+                        } else {
+                            quizTitle.textContent = 'Get Ready!';
+                        }
+                    }
+                    
+                    // Clear any polling intervals since we got the update
+                    if (nextQuestionPollingInterval) {
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
                     }
                     break;
                 case 'question-preview':
@@ -935,9 +958,6 @@
                     console.log('Moving to results phase');
                     showScreen('results-screen');
                     updatePlayerDisplay();
-                    // While showing results, proactively start polling for the next question
-                    // in case realtime misses the scoreboard/preview events
-                    startNextQuestionPolling();
                     // Compute and display result locally
                     try {
                         const question = quizState.questionData;
@@ -979,12 +999,24 @@
                     
                 case 'scoreboard':
                     console.log('Moving to scoreboard phase');
-                    showScreen('loading-screen');
+                    // Keep players on results screen briefly, then prepare for next question
+                    // If we're currently on results screen, show loading to indicate next question is coming
+                    const currentActiveScreen = document.querySelector('.screen.active');
+                    if (currentActiveScreen && currentActiveScreen.id === 'results-screen') {
+                        // Briefly show loading then start polling for next question
+                        setTimeout(() => {
+                            showScreen('loading-screen');
+                            const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                            if (loadingTitle) loadingTitle.textContent = 'Preparing next question...';
+                        }, 1000);
+                    } else {
+                        showScreen('loading-screen');
+                        const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                        if (loadingTitle) loadingTitle.textContent = 'Waiting for next question...';
+                    }
                     updatePlayerDisplay();
                     updateScoreDisplay();
-                    const loadingTitle = document.querySelector('#loading-screen .loading-title');
-                    if (loadingTitle) loadingTitle.textContent = 'Waiting for next question...';
-                    // Start polling to catch transition to the next question preview
+                    // Start polling to catch transition to the next question countdown/preview
                     startNextQuestionPolling();
                     break;
                     
