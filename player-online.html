@@ -544,20 +544,34 @@
                 return;
             }
             
-            console.log('[POLL] Starting next question polling...');
+                                console.log('[POLL] Starting next question polling...');
             nextQuestionPollingInterval = setInterval(async () => {
                 try {
+                    console.log('[POLL] 🔍 Polling quiz_states table for game:', currentGameCode);
                     const { data, error } = await window.supabaseClient
                         .from('quiz_states')
                         .select('*')
                         .eq('game_code', currentGameCode)
                         .single();
                     if (error) {
-                        console.error('[POLL] Database error:', error);
+                        console.error('[POLL] ❌ Database error:', error);
+                        console.error('[POLL] Error details:', {
+                            code: error.code,
+                            message: error.message,
+                            details: error.details,
+                            hint: error.hint
+                        });
                         return;
                     }
-                    console.log('[POLL] Raw DB data:', data);
-                    console.log('[POLL] Checking phase:', data?.phase, 'Current screen:', document.querySelector('.screen.active')?.id);
+                    console.log('[POLL] ✅ Raw DB data received:', data);
+                    console.log('[POLL] 📊 Analysis:');
+                    console.log('  - Phase:', data?.phase);
+                    console.log('  - Countdown:', data?.countdown);
+                    console.log('  - Question Data:', data?.question_data);
+                    console.log('  - Current Question:', data?.current_question);
+                    console.log('  - Updated At:', data?.updated_at);
+                    console.log('  - Current Screen:', document.querySelector('.screen.active')?.id);
+                    console.log('  - Answer Submitted:', answerSubmitted);
                     
                     if (data && data.phase === 'question-preview') {
                         console.log('[POLL] ✅ Detected question-preview phase! Transitioning from results to countdown...');

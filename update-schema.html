@@ -15,63 +15,114 @@
     <script>
         async function updateSchema() {
             const output = document.getElementById('output');
-            output.innerHTML = '<p>Updating schema...</p>';
+            output.innerHTML = '<p>Checking and updating schema...</p>';
             
             try {
-                // Add missing columns to existing tables
-                const alterQueries = [
-                    `
-                    DO $$ 
-                    BEGIN
-                        -- Add start_time column to game_sessions if it doesn't exist
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'game_sessions' AND column_name = 'start_time') THEN
-                            ALTER TABLE game_sessions ADD COLUMN start_time TIMESTAMP WITH TIME ZONE;
-                        END IF;
-                        
-                        -- Add countdown column to quiz_states if it doesn't exist
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'countdown') THEN
-                            ALTER TABLE quiz_states ADD COLUMN countdown INTEGER;
-                        END IF;
-                        
-                        -- Add time_left column to quiz_states if it doesn't exist
-                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'time_left') THEN
-                            ALTER TABLE quiz_states ADD COLUMN time_left INTEGER;
-                        END IF;
-                    END $$;
-                    `
-                ];
+                // First, try to check current quiz_states table structure
+                output.innerHTML += '<p>Checking current table structure...</p>';
                 
-                for (const query of alterQueries) {
-                    console.log('Executing query:', query);
-                    const { error } = await window.supabaseClient.rpc('exec_sql', { sql: query });
-                    if (error) {
-                        console.error('Error executing query:', error);
-                        output.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+                // Try to select from quiz_states to see what columns exist
+                const { data: testData, error: testError } = await window.supabaseClient
+                    .from('quiz_states')
+                    .select('*')
+                    .limit(1);
+                
+                if (testData || testError) {
+                    output.innerHTML += '<p>Quiz states table exists. Checking columns...</p>';
+                    
+                    // Try a simple insert to test if columns exist
+                    const testGameCode = 'TEST_' + Math.random().toString(36).substr(2, 9);
+                    const { error: insertError } = await window.supabaseClient
+                        .from('quiz_states')
+                        .insert({
+                            game_code: testGameCode,
+                            phase: 'test',
+                            countdown: 10,
+                            time_left: 20
+                        });
+                    
+                    if (insertError && insertError.message.includes('column')) {
+                        output.innerHTML += '<p style="color: orange;">Missing columns detected. Adding them now...</p>';
+                        
+                        // Add missing columns using direct SQL
+                        try {
+                            // Add countdown column
+                            const { error: e1 } = await window.supabaseClient.rpc('sql', {
+                                query: 'ALTER TABLE quiz_states ADD COLUMN IF NOT EXISTS countdown INTEGER;'
+                            });
+                            
+                            // Add time_left column  
+                            const { error: e2 } = await window.supabaseClient.rpc('sql', {
+                                query: 'ALTER TABLE quiz_states ADD COLUMN IF NOT EXISTS time_left INTEGER;'
+                            });
+                            
+                            // Add start_time to game_sessions
+                            const { error: e3 } = await window.supabaseClient.rpc('sql', {
+                                query: 'ALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE;'
+                            });
+                            
+                            if (e1 || e2 || e3) {
+                                output.innerHTML += '<p style="color: red;">Error adding columns via RPC. Trying manual approach...</p>';
+                                
+                                // Manual approach - create a test function
+                                await window.supabaseClient.rpc('create_missing_columns');
+                            } else {
+                                output.innerHTML += '<p style="color: green;">Columns added successfully!</p>';
+                            }
+                        } catch (rpcError) {
+                            output.innerHTML += '<p style="color: red;">RPC method failed. Please run SQL manually in Supabase dashboard:</p>';
+                            output.innerHTML += '<pre style="background: #f0f0f0; padding: 10px; margin: 10px 0;">ALTER TABLE quiz_states ADD COLUMN IF NOT EXISTS countdown INTEGER;\nALTER TABLE quiz_states ADD COLUMN IF NOT EXISTS time_left INTEGER;\nALTER TABLE game_sessions ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE;</pre>';
+                        }
+                    } else if (!insertError) {
+                        output.innerHTML += '<p style="color: green;">All columns exist! Test insert successful.</p>';
+                        // Clean up test record
+                        await window.supabaseClient
+                            .from('quiz_states')
+                            .delete()
+                            .eq('game_code', testGameCode);
                     } else {
-                        output.innerHTML += `<p style="color: green;">Schema updated successfully!</p>`;
+                        output.innerHTML += `<p style="color: orange;">Insert test error: ${insertError.message}</p>`;
                     }
                 }
                 
-                // Test if columns exist by querying the table structure
-                const { data: gameSessionsColumns } = await window.supabaseClient
-                    .from('information_schema.columns')
-                    .select('column_name')
-                    .eq('table_name', 'game_sessions');
+                // Test the current quiz state functionality
+                output.innerHTML += '<h3>Testing Quiz State Updates:</h3>';
+                const testGameCode2 = 'FUNC_' + Math.random().toString(36).substr(2, 9);
+                
+                try {
+                    // Test if GameDB.updateQuizState works
+                    await GameDB.updateQuizState(testGameCode2, {
+                        phase: 'question-preview',
+                        currentQuestion: 0,
+                        questionData: { title: 'Test Question' },
+                        countdown: 10
+                    });
                     
-                const { data: quizStatesColumns } = await window.supabaseClient
-                    .from('information_schema.columns')
-                    .select('column_name')
-                    .eq('table_name', 'quiz_states');
-                
-                output.innerHTML += '<h3>Current Schema:</h3>';
-                output.innerHTML += '<h4>game_sessions columns:</h4>';
-                output.innerHTML += '<ul>' + (gameSessionsColumns || []).map(col => `<li>${col.column_name}</li>`).join('') + '</ul>';
-                
-                output.innerHTML += '<h4>quiz_states columns:</h4>';
-                output.innerHTML += '<ul>' + (quizStatesColumns || []).map(col => `<li>${col.column_name}</li>`).join('') + '</ul>';
+                    // Check if it was stored correctly
+                    const { data: stored } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', testGameCode2)
+                        .single();
+                    
+                    if (stored) {
+                        output.innerHTML += '<p style="color: green;">✅ Quiz state update test successful!</p>';
+                        output.innerHTML += `<p>Stored data: ${JSON.stringify(stored, null, 2)}</p>`;
+                        
+                        // Clean up
+                        await window.supabaseClient
+                            .from('quiz_states')
+                            .delete()
+                            .eq('game_code', testGameCode2);
+                    } else {
+                        output.innerHTML += '<p style="color: red;">❌ Quiz state update test failed - no data stored</p>';
+                    }
+                } catch (funcError) {
+                    output.innerHTML += `<p style="color: red;">❌ Quiz state function test failed: ${funcError.message}</p>`;
+                }
                 
             } catch (error) {
-                console.error('Schema update error:', error);
+                console.error('Schema check error:', error);
                 output.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
             }
         }

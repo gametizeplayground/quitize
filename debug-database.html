@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Database</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <h1>Database Debug Tool</h1>
+    <div>
+        <label>Game Code: </label>
+        <input type="text" id="gameCode" placeholder="Enter game code">
+        <button onclick="debugGame()">Debug Game</button>
+        <button onclick="continuousDebug()">Start Continuous Debug</button>
+        <button onclick="stopDebug()">Stop Debug</button>
+    </div>
+    <div id="output"></div>
+
+    <script>
+        let debugInterval = null;
+        
+        async function debugGame() {
+            const gameCode = document.getElementById('gameCode').value;
+            if (!gameCode) {
+                alert('Please enter a game code');
+                return;
+            }
+            
+            const output = document.getElementById('output');
+            output.innerHTML = '<h3>Debug Results for Game: ' + gameCode + '</h3>';
+            
+            try {
+                // Check game session
+                const { data: gameSession, error: gameError } = await window.supabaseClient
+                    .from('game_sessions')
+                    .select('*')
+                    .eq('game_code', gameCode)
+                    .single();
+                
+                if (gameError) {
+                    output.innerHTML += '<p style="color: red;">Game Session Error: ' + gameError.message + '</p>';
+                } else {
+                    output.innerHTML += '<h4>Game Session:</h4>';
+                    output.innerHTML += '<pre>' + JSON.stringify(gameSession, null, 2) + '</pre>';
+                }
+                
+                // Check quiz state
+                const { data: quizState, error: quizError } = await window.supabaseClient
+                    .from('quiz_states')
+                    .select('*')
+                    .eq('game_code', gameCode)
+                    .single();
+                
+                if (quizError) {
+                    output.innerHTML += '<p style="color: red;">Quiz State Error: ' + quizError.message + '</p>';
+                } else {
+                    output.innerHTML += '<h4>Quiz State:</h4>';
+                    output.innerHTML += '<pre>' + JSON.stringify(quizState, null, 2) + '</pre>';
+                }
+                
+                // Check players
+                const { data: players, error: playersError } = await window.supabaseClient
+                    .from('players')
+                    .select('*')
+                    .eq('game_code', gameCode);
+                
+                if (playersError) {
+                    output.innerHTML += '<p style="color: red;">Players Error: ' + playersError.message + '</p>';
+                } else {
+                    output.innerHTML += '<h4>Players (' + players.length + '):</h4>';
+                    output.innerHTML += '<pre>' + JSON.stringify(players, null, 2) + '</pre>';
+                }
+                
+                // Test quiz state update
+                output.innerHTML += '<h4>Testing Quiz State Update:</h4>';
+                try {
+                    await GameDB.updateQuizState(gameCode, {
+                        phase: 'test-update',
+                        currentQuestion: 999,
+                        countdown: 123
+                    });
+                    output.innerHTML += '<p style="color: green;">✅ Quiz state update test successful</p>';
+                    
+                    // Read it back
+                    const { data: updatedState } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', gameCode)
+                        .single();
+                    
+                    output.innerHTML += '<h5>Updated State:</h5>';
+                    output.innerHTML += '<pre>' + JSON.stringify(updatedState, null, 2) + '</pre>';
+                    
+                } catch (updateError) {
+                    output.innerHTML += '<p style="color: red;">❌ Quiz state update failed: ' + updateError.message + '</p>';
+                }
+                
+            } catch (error) {
+                output.innerHTML += '<p style="color: red;">Debug error: ' + error.message + '</p>';
+            }
+        }
+        
+        function continuousDebug() {
+            const gameCode = document.getElementById('gameCode').value;
+            if (!gameCode) {
+                alert('Please enter a game code');
+                return;
+            }
+            
+            if (debugInterval) {
+                clearInterval(debugInterval);
+            }
+            
+            debugInterval = setInterval(async () => {
+                const timestamp = new Date().toLocaleTimeString();
+                
+                try {
+                    const { data: quizState } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', gameCode)
+                        .single();
+                    
+                    const output = document.getElementById('output');
+                    output.innerHTML = `
+                        <h3>Continuous Debug - ${timestamp}</h3>
+                        <p><strong>Game Code:</strong> ${gameCode}</p>
+                        <p><strong>Phase:</strong> ${quizState?.phase || 'NOT FOUND'}</p>
+                        <p><strong>Countdown:</strong> ${quizState?.countdown || 'NOT SET'}</p>
+                        <p><strong>Current Question:</strong> ${quizState?.current_question}</p>
+                        <p><strong>Updated At:</strong> ${quizState?.updated_at}</p>
+                        <h4>Full Quiz State:</h4>
+                        <pre>${JSON.stringify(quizState, null, 2)}</pre>
+                    `;
+                } catch (error) {
+                    console.error('Continuous debug error:', error);
+                }
+            }, 1000);
+        }
+        
+        function stopDebug() {
+            if (debugInterval) {
+                clearInterval(debugInterval);
+                debugInterval = null;
+            }
+        }
+    </script>
+</body>
+</html>
