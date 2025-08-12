@@ -562,7 +562,7 @@
                         startPreviewPolling();
                     }
                 } catch {}
-            }, 1000);
+            }, 500); // Reduced polling interval for faster response
         }
 
         // NOTE: The robust quiz state handler is defined later in the file.
@@ -836,12 +836,20 @@
                     updatePlayerDisplay();
                     updateScoreDisplay();
                     answerSubmitted = false; // Reset for new question
+                    enableOptionButtons(); // Re-enable buttons for new question
+                    
                     if (quizState.countdown !== undefined) {
                         updateCountdownDisplay(quizState.countdown);
                     }
                     const previewTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (previewTitle && quizState.questionData) {
                         previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
+                    }
+                    
+                    // Clear any previous polling intervals
+                    if (nextQuestionPollingInterval) {
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
                     }
                     // If host provided a precise live start time, synchronize to it
                     try {
@@ -970,6 +978,8 @@
                     showScreen('loading-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
+                    const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                    if (loadingTitle) loadingTitle.textContent = 'Waiting for next question...';
                     // Start polling to catch transition to the next question preview
                     startNextQuestionPolling();
                     break;

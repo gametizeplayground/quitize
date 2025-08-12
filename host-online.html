@@ -874,8 +874,8 @@
             currentQuestionIndex++;
             
             if (currentQuestionIndex < quizQuestions.length) {
-                // Move to next question
-                setTimeout(() => showQuestionPreview(), 1000);
+                // Move to next question immediately (no delay)
+                showQuestionPreview();
             } else {
                 // Quiz ended - show final leaderboard
                 showFinalLeaderboard();
