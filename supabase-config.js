@@ -133,6 +133,10 @@ function cleanupSubscriptions() {
         window.supabaseClient.removeChannel(startBroadcastChannel);
         startBroadcastChannel = null;
     }
+    if (window.nextQuestionChannel) {
+        window.supabaseClient.removeChannel(window.nextQuestionChannel);
+        window.nextQuestionChannel = null;
+    }
 }
 
 // Handle game session updates

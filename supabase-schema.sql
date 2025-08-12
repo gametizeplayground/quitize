@@ -23,6 +23,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_states' AND column_name = 'time_left') THEN
         ALTER TABLE quiz_states ADD COLUMN time_left INTEGER;
     END IF;
+    
+    -- Add next_question_signal column to game_sessions if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'game_sessions' AND column_name = 'next_question_signal') THEN
+        ALTER TABLE game_sessions ADD COLUMN next_question_signal INTEGER;
+    END IF;
 END $$;
 
 -- Game Sessions Table
@@ -33,6 +38,7 @@ CREATE TABLE IF NOT EXISTS game_sessions (
     scores JSONB DEFAULT '{}',
     status VARCHAR(20) DEFAULT 'waiting',
     start_time TIMESTAMP WITH TIME ZONE,
+    next_question_signal INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

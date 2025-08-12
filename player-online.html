@@ -312,6 +312,9 @@
                 // Initialize real-time subscriptions
                 initializeGameSubscriptions(code);
                 
+                // Initialize next question broadcast listener
+                initializeNextQuestionListener(code);
+                
                 console.log('✅ Real-time subscriptions initialized for game:', code);
                 
                 // Test if subscriptions are working after a short delay
@@ -767,6 +770,52 @@
             if (session.scores && session.scores[playerName]) {
                 currentScore = session.scores[playerName];
                 updateScoreDisplay();
+            }
+        }
+
+        // Initialize next question broadcast listener
+        function initializeNextQuestionListener(gameCode) {
+            console.log('🎧 Setting up next question broadcast listener for game:', gameCode);
+            
+            try {
+                const nextQuestionChannel = window.supabaseClient.channel(`next_question_${gameCode}`, {
+                    config: { broadcast: { self: true } }
+                });
+                
+                nextQuestionChannel
+                    .on('broadcast', { event: 'next_question' }, (payload) => {
+                        console.log('🔔 RECEIVED NEXT QUESTION BROADCAST:', payload);
+                        const { game_code, question_index, timestamp } = payload.payload;
+                        
+                        if (game_code === currentGameCode) {
+                            console.log('🚀 HOST CLICKED NEXT! Immediately transitioning to next question...');
+                            
+                            // Immediately reset answer state and transition
+                            answerSubmitted = false;
+                            lastSelectedAnswer = null;
+                            lastAnswerTimeTaken = 0;
+                            lastQuestionSeen = question_index;
+                            
+                            // Force transition to loading screen first
+                            showScreen('loading-screen');
+                            const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                            if (loadingTitle) loadingTitle.textContent = 'Moving to next question...';
+                            
+                            // Start aggressive polling for the question-preview state
+                            startNextQuestionPolling();
+                            
+                            console.log('✅ Player ready for next question transition');
+                        }
+                    })
+                    .subscribe((status) => {
+                        console.log('Next question broadcast listener status:', status);
+                    });
+                    
+                // Store reference for cleanup
+                window.nextQuestionChannel = nextQuestionChannel;
+                
+            } catch (error) {
+                console.error('❌ Failed to setup next question listener:', error);
             }
         }
 
