@@ -83,8 +83,8 @@ function initializeGameSubscriptions(gameCode) {
                                 phase: newRecord.phase,
                                 currentQuestion: newRecord.current_question,
                                 questionData: newRecord.question_data,
-                                countdown: newRecord.question_data?.countdown,
-                                timeLeft: newRecord.question_data?.timeLeft,
+                                countdown: newRecord.countdown || newRecord.question_data?.countdown,
+                                timeLeft: newRecord.time_left || newRecord.question_data?.timeLeft,
                                 lastUpdated: newRecord.updated_at
                             }
                         }
@@ -437,6 +437,8 @@ const GameDB = {
             phase: quizState.phase,
             current_question: quizState.currentQuestion,
             question_data: questionData,
+            countdown: quizState.countdown, // Store countdown at top level too
+            time_left: quizState.timeLeft,  // Store timeLeft at top level too
             updated_at: new Date().toISOString()
         };
 

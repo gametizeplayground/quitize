@@ -556,6 +556,7 @@
                         console.error('[POLL] Database error:', error);
                         return;
                     }
+                    console.log('[POLL] Raw DB data:', data);
                     console.log('[POLL] Checking phase:', data?.phase, 'Current screen:', document.querySelector('.screen.active')?.id);
                     
                     if (data && data.phase === 'question-preview') {
@@ -563,14 +564,19 @@
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
                         
-                        showScreen('countdown-screen');
+                        // Force screen transition
+                        console.log('[POLL] Current screen before force transition:', document.querySelector('.screen.active')?.id);
+                        document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                        document.getElementById('countdown-screen').classList.add('active');
                         console.log('[POLL] Screen changed to countdown-screen');
+                        
                         answerSubmitted = false;
                         enableOptionButtons();
                         
-                        if (typeof data.countdown === 'number') {
-                            updateCountdownDisplay(data.countdown);
-                        }
+                        // Get countdown from multiple possible locations
+                        const countdown = data.countdown || data.question_data?.countdown || 10;
+                        console.log('[POLL] Countdown value:', countdown);
+                        updateCountdownDisplay(countdown);
                         
                         // Update quiz title with correct question number
                         const quizTitle = document.querySelector('#countdown-screen .quiz-title');
@@ -582,6 +588,25 @@
                         if (data.question_data) {
                             updateQuestionContent(data.question_data);
                         }
+                        
+                        // Also trigger the quiz state update handler manually since real-time might be failing
+                        console.log('[POLL] Manually triggering quiz state update handler...');
+                        try {
+                            handleQuizStateUpdate({
+                                detail: {
+                                    gameCode: currentGameCode,
+                                    quizState: {
+                                        phase: data.phase,
+                                        currentQuestion: data.current_question,
+                                        questionData: data.question_data,
+                                        countdown: countdown
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            console.error('[POLL] Error triggering manual quiz state update:', e);
+                        }
+                        
                         // Begin preview->live fallback
                         startPreviewPolling();
                     }
@@ -781,6 +806,8 @@
         // Global: log every quiz state event
         window.addEventListener('quizStateUpdated', function(payload) {
             console.log('[GLOBAL] quizStateUpdated event:', payload);
+            console.log('[GLOBAL] Event detail:', payload.detail);
+            console.log('[GLOBAL] Quiz state:', payload.detail.quizState);
         });
 
         // Fallback: if stuck on preview screen, force transition after 6 seconds
@@ -1040,7 +1067,7 @@
                     
                     // Also check immediately in case the question-preview phase is already active
                     // Check multiple times with short intervals to catch rapid state changes
-                    const immediateChecks = [50, 200, 500, 1000]; // Check at 50ms, 200ms, 500ms, and 1s
+                    const immediateChecks = [10, 50, 100, 200, 500, 1000, 2000]; // More frequent checks
                     immediateChecks.forEach(delay => {
                         setTimeout(async () => {
                             try {
@@ -1050,6 +1077,7 @@
                                     .select('*')
                                     .eq('game_code', currentGameCode)
                                     .single();
+                                console.log(`[IMMEDIATE CHECK ${delay}ms] Raw data:`, data);
                                 if (!error && data && data.phase === 'question-preview') {
                                     console.log(`[IMMEDIATE CHECK ${delay}ms] Found question-preview! Transitioning...`);
                                     
@@ -1059,12 +1087,20 @@
                                         nextQuestionPollingInterval = null;
                                     }
                                     
-                                    showScreen('countdown-screen');
+                                    // Force screen transition
+                                    console.log(`[IMMEDIATE CHECK ${delay}ms] Current screen before force transition:`, document.querySelector('.screen.active')?.id);
+                                    document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                                    document.getElementById('countdown-screen').classList.add('active');
+                                    console.log(`[IMMEDIATE CHECK ${delay}ms] Screen changed to countdown-screen`);
+                                    
                                     answerSubmitted = false;
                                     enableOptionButtons();
-                                    if (typeof data.countdown === 'number') {
-                                        updateCountdownDisplay(data.countdown);
-                                    }
+                                    
+                                    // Get countdown from multiple possible locations
+                                    const countdown = data.countdown || data.question_data?.countdown || 10;
+                                    console.log(`[IMMEDIATE CHECK ${delay}ms] Countdown value:`, countdown);
+                                    updateCountdownDisplay(countdown);
+                                    
                                     const quizTitle = document.querySelector('#countdown-screen .quiz-title');
                                     if (quizTitle && data.question_data) {
                                         const questionNumber = (data.current_question !== null && data.current_question !== undefined) ? data.current_question + 1 : 1;
