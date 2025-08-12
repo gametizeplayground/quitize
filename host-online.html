@@ -1132,6 +1132,12 @@
                 gameStarted = false;
                 currentQuestionIndex = 0;
                 
+                // Force immediate UI update to show no players
+                console.log('🔄 Updating UI to show no players...');
+                updatePlayersDisplay();
+                updatePlayerCount();
+                updateStartButton();
+                
                 // Generate a new game code and create new session
                 console.log('🎮 Generating new game code...');
                 await generateGameCode();
@@ -1169,6 +1175,9 @@
                 console.error('Error resetting game session:', error);
             }
             
+            // Update UI to show no players
+            updatePlayersDisplay();
+            updatePlayerCount();
             updateStartButton();
         }
 
