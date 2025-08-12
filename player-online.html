@@ -279,6 +279,8 @@
         let resultsPollingInterval = null;
         let nextQuestionPollingInterval = null;
         let answerSubmitted = false;
+        // Track question changes to reset state even if previous answer was submitted
+        let lastQuestionSeen = -1;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -890,6 +892,15 @@
             console.log('Current Screen:', document.querySelector('.screen.active')?.id);
             console.log('Answer Submitted:', answerSubmitted);
             console.log('==============================');
+
+            // If host moved to a different question index, always reset local answer state
+            if (typeof quizState.currentQuestion === 'number' && quizState.currentQuestion !== lastQuestionSeen) {
+                console.log('[STATE] Detected new question index. Resetting answer state. From', lastQuestionSeen, 'to', quizState.currentQuestion);
+                lastQuestionSeen = quizState.currentQuestion;
+                answerSubmitted = false;
+                lastSelectedAnswer = null;
+                lastAnswerTimeTaken = 0;
+            }
             // Clear any previous fallback
             if (previewFallbackTimeout) {
                 clearTimeout(previewFallbackTimeout);
@@ -1034,7 +1045,17 @@
                         
                         console.log('🎯 ✅ Live question transition complete!');
                     } else {
-                        console.log('🎯 Player has already submitted answer, staying on current screen');
+                        // If answerSubmitted is true but this is a new question index, clear it and transition
+                        if (typeof quizState.currentQuestion === 'number' && quizState.currentQuestion !== lastQuestionSeen) {
+                            console.warn('🎯 Detected new question while answerSubmitted=true. Resetting and transitioning.');
+                            answerSubmitted = false;
+                            lastSelectedAnswer = null;
+                            lastAnswerTimeTaken = 0;
+                            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                            document.getElementById('question-screen').classList.add('active');
+                        } else {
+                            console.log('🎯 Player has already submitted answer, staying on current screen');
+                        }
                     }
                     
                     // Stop polling if we get here
