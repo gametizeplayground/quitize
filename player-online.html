@@ -278,6 +278,7 @@
         let lastAnswerTimeTaken = 0;
         let resultsPollingInterval = null;
         let nextQuestionPollingInterval = null;
+        let answerSubmitted = false;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -451,6 +452,8 @@
 
         // Select answer
         async function selectAnswer(answer) {
+            if (answerSubmitted) return;
+            
             if (questionStartTime === 0) {
                 questionStartTime = Date.now();
             }
@@ -458,6 +461,7 @@
             const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
             lastSelectedAnswer = answer;
             lastAnswerTimeTaken = timeTaken;
+            answerSubmitted = true;
             
             try {
                 // Submit answer to Supabase
@@ -478,6 +482,7 @@
             } catch (error) {
                 console.error('Error submitting answer:', error);
                 showMessage('Error submitting answer. Please try again.', 'error');
+                answerSubmitted = false; // Reset on error to allow retry
             }
         }
 
@@ -607,6 +612,13 @@
                 optionButtons[3].textContent = 'D';
                 console.log('✅ Question options updated');
             }
+        }
+
+        // Re-enable option buttons for a new question
+        function enableOptionButtons() {
+            document.querySelectorAll('.option-button').forEach(btn => {
+                btn.disabled = false;
+            });
         }
 
         // Synchronized countdown for player
@@ -761,12 +773,17 @@
                         console.warn('[POLL] Forcing transition to question-screen from poll!');
                         clearInterval(previewPollingInterval);
                         previewPollingInterval = null;
-                        showScreen('question-screen');
-                        updatePlayerDisplay();
-                        updateScoreDisplay();
-                        questionStartTime = Date.now();
-                        if (data.question_data) {
-                            updateQuestionContent(data.question_data);
+                        
+                        // Only transition if answer hasn't been submitted
+                        if (!answerSubmitted) {
+                            showScreen('question-screen');
+                            updatePlayerDisplay();
+                            updateScoreDisplay();
+                            questionStartTime = Date.now();
+                            enableOptionButtons(); // Re-enable buttons for new question
+                            if (data.question_data) {
+                                updateQuestionContent(data.question_data);
+                            }
                         }
                     }
                 } catch (err) {
@@ -800,6 +817,7 @@
                     showScreen('countdown-screen');
                     updatePlayerDisplay();
                     updateScoreDisplay();
+                    answerSubmitted = false; // Reset for new question
                     
                     // Update countdown number if available
                     if (quizState.countdown !== undefined) {
@@ -817,6 +835,7 @@
                     showScreen('countdown-screen'); // Ensure player transitions to preview/countdown screen
                     updatePlayerDisplay();
                     updateScoreDisplay();
+                    answerSubmitted = false; // Reset for new question
                     if (quizState.countdown !== undefined) {
                         updateCountdownDisplay(quizState.countdown);
                     }
@@ -837,6 +856,7 @@
                                     updatePlayerDisplay();
                                     updateScoreDisplay();
                                     questionStartTime = Date.now();
+                                    enableOptionButtons(); // Re-enable buttons for new question
                                     if (quizState.questionData) {
                                         updateQuestionContent(quizState.questionData);
                                     }
@@ -863,30 +883,38 @@
                     break;
                 case 'live-question':
                     console.log('Moving to live question phase');
-                    showScreen('question-screen');
-                    // Robust: force transition if not active
-                    setTimeout(() => {
-                        const questionScreen = document.getElementById('question-screen');
-                        if (!questionScreen.classList.contains('active')) {
-                            console.warn('[FORCE] Forcing question-screen to active!');
-                            document.querySelectorAll('.screen').forEach(screen => {
-                                screen.classList.remove('active');
-                            });
-                            questionScreen.classList.add('active');
-                        } else {
-                            console.log('[DEBUG] question-screen is active.');
-                        }
-                    }, 100);
-                    updatePlayerDisplay();
-                    updateScoreDisplay();
-                    questionStartTime = Date.now();
-                    lastSelectedAnswer = null;
-                    lastAnswerTimeTaken = 0;
                     
-                    // Update question content if available
-                    if (quizState.questionData) {
-                        updateQuestionContent(quizState.questionData);
+                    // Only transition to question screen if answer hasn't been submitted
+                    if (!answerSubmitted) {
+                        showScreen('question-screen');
+                        // Robust: force transition if not active
+                        setTimeout(() => {
+                            const questionScreen = document.getElementById('question-screen');
+                            if (!questionScreen.classList.contains('active')) {
+                                console.warn('[FORCE] Forcing question-screen to active!');
+                                document.querySelectorAll('.screen').forEach(screen => {
+                                    screen.classList.remove('active');
+                                });
+                                questionScreen.classList.add('active');
+                            } else {
+                                console.log('[DEBUG] question-screen is active.');
+                            }
+                        }, 100);
+                        updatePlayerDisplay();
+                        updateScoreDisplay();
+                        questionStartTime = Date.now();
+                        lastSelectedAnswer = null;
+                        lastAnswerTimeTaken = 0;
+                        enableOptionButtons(); // Re-enable buttons for new question
+                        
+                        // Update question content if available
+                        if (quizState.questionData) {
+                            updateQuestionContent(quizState.questionData);
+                        }
+                    } else {
+                        console.log('Player has already submitted answer, staying on current screen');
                     }
+                    
                     // Stop polling if we get here
                     if (previewPollingInterval) {
                         clearInterval(previewPollingInterval);
