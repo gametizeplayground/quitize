@@ -603,10 +603,8 @@
                         document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
                         document.getElementById('countdown-screen').classList.add('active');
                         
-                        // Reset countdown tracking
+                        // Reset countdown tracking and start synchronized countdown
                         resetCountdownTracking();
-                        
-                        // Start synchronized countdown for player to match host's countdown
                         let playerPreviewCountdown = data.countdown || data.question_data?.countdown || 10;
                         updateCountdownDisplay(playerPreviewCountdown, 'scoreboard-poll');
                         
@@ -719,6 +717,7 @@
                         enableOptionButtons();
                         
                         // Start synchronized countdown for player to match host's countdown
+                        resetCountdownTracking(); // Reset tracking before starting new countdown
                         let playerPreviewCountdown = data.countdown || data.question_data?.countdown || 10;
                         console.log('[POLL] Starting synchronized countdown:', playerPreviewCountdown);
                         updateCountdownDisplay(playerPreviewCountdown, 'polling');
@@ -805,14 +804,19 @@
 
         // Update countdown display
         function updateCountdownDisplay(count, source = 'unknown') {
-            // Prevent rapid updates that cause flicker
+            // Prevent rapid updates that cause flicker (only if from same source)
             if (count === lastCountdownValue && source === countdownUpdateSource) {
                 return; // Skip if same value from same source
             }
             
-            // Don't allow countdown to go backwards unless it's a reset (10, 9, 8...)
-            if (count > lastCountdownValue && lastCountdownValue > 0 && count < 10) {
-                console.log('🚫 Preventing countdown from going backwards:', lastCountdownValue, '->', count);
+            // Allow countdown resets (starting new countdown from 10) and normal countdown progression
+            // Only prevent backwards movement within the same countdown sequence
+            const isCountdownReset = count === 10 || count === 9; // Starting new countdown
+            const isNormalProgression = count <= lastCountdownValue; // Normal countdown 10->9->8...
+            const isAllowedUpdate = isCountdownReset || isNormalProgression || lastCountdownValue === -1;
+            
+            if (!isAllowedUpdate) {
+                console.log('🚫 Preventing invalid countdown transition:', lastCountdownValue, '->', count, 'from source:', source);
                 return;
             }
             
@@ -824,6 +828,7 @@
             const countdownById = document.getElementById('countdown-display');
             if (countdownById) {
                 countdownById.textContent = count;
+                console.log('📱 Updated countdown by ID:', count);
             }
             
             // Update by class (fallback)
@@ -831,6 +836,7 @@
             countdownElements.forEach(element => {
                 if (element && element !== countdownById) {
                     element.textContent = count;
+                    console.log('📱 Updated countdown by class:', count);
                 }
             });
             
@@ -1228,6 +1234,7 @@
                     
                     // Start synchronized countdown for player to match host's 10-second countdown
                     console.log('🕐 Starting synchronized player countdown for question preview');
+                    resetCountdownTracking(); // Reset tracking before starting new countdown
                     let playerPreviewCountdown = quizState.countdown || 10;
                     updateCountdownDisplay(playerPreviewCountdown, 'quiz-state-preview');
                     
@@ -1483,6 +1490,7 @@
                                     enableOptionButtons();
                                     
                                     // Start synchronized countdown for player to match host's countdown
+                                    resetCountdownTracking(); // Reset tracking before starting new countdown
                                     let playerPreviewCountdown = data.countdown || data.question_data?.countdown || 10;
                                     console.log(`[IMMEDIATE CHECK ${delay}ms] Starting synchronized countdown:`, playerPreviewCountdown);
                                     updateCountdownDisplay(playerPreviewCountdown, 'immediate-check');
