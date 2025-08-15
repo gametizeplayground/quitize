@@ -741,6 +741,13 @@
             const resultsScreen = document.getElementById('quiz-results-screen');
             const question = quizQuestions[currentQuestionIndex];
             
+            // Update quiz title with current question number
+            const quizTitle = resultsScreen.querySelector('.quiz-title');
+            if (quizTitle) {
+                quizTitle.textContent = `Question ${currentQuestionIndex + 1}`;
+                console.log('🎯 Updated host quiz title to:', `Question ${currentQuestionIndex + 1}`);
+            }
+            
             // Get answers from Supabase
             const answers = await GameDB.getQuestionAnswers(currentGameCode, currentQuestionIndex);
             
