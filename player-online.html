@@ -606,9 +606,31 @@
                         // Reset countdown tracking
                         resetCountdownTracking();
                         
-                        // Update countdown display
-                        const countdown = data.countdown || data.question_data?.countdown || 10;
-                        updateCountdownDisplay(countdown, 'scoreboard-poll');
+                        // Start synchronized countdown for player to match host's countdown
+                        let playerPreviewCountdown = data.countdown || data.question_data?.countdown || 10;
+                        updateCountdownDisplay(playerPreviewCountdown, 'scoreboard-poll');
+                        
+                        // Clear any existing countdown interval
+                        if (synchronizedCountdownInterval) {
+                            clearInterval(synchronizedCountdownInterval);
+                            synchronizedCountdownInterval = null;
+                        }
+                        
+                        // Start countdown timer that matches host's countdown
+                        synchronizedCountdownInterval = setInterval(() => {
+                            playerPreviewCountdown--;
+                            console.log('[SCOREBOARD POLL] 🕐 Player preview countdown:', playerPreviewCountdown);
+                            
+                            if (playerPreviewCountdown > 0) {
+                                updateCountdownDisplay(playerPreviewCountdown, 'scoreboard-poll-sync');
+                            } else {
+                                console.log('[SCOREBOARD POLL] 🎯 Player preview countdown finished!');
+                                clearInterval(synchronizedCountdownInterval);
+                                synchronizedCountdownInterval = null;
+                                // Start polling for live question transition
+                                startPreviewPolling();
+                            }
+                        }, 1000);
                         
                         // Update quiz title
                         const quizTitle = document.querySelector('#countdown-screen .quiz-title');
@@ -696,10 +718,32 @@
                         answerSubmitted = false;
                         enableOptionButtons();
                         
-                        // Get countdown from multiple possible locations
-                        const countdown = data.countdown || data.question_data?.countdown || 10;
-                        console.log('[POLL] Countdown value:', countdown);
-                        updateCountdownDisplay(countdown, 'polling');
+                        // Start synchronized countdown for player to match host's countdown
+                        let playerPreviewCountdown = data.countdown || data.question_data?.countdown || 10;
+                        console.log('[POLL] Starting synchronized countdown:', playerPreviewCountdown);
+                        updateCountdownDisplay(playerPreviewCountdown, 'polling');
+                        
+                        // Clear any existing countdown interval
+                        if (synchronizedCountdownInterval) {
+                            clearInterval(synchronizedCountdownInterval);
+                            synchronizedCountdownInterval = null;
+                        }
+                        
+                        // Start countdown timer that matches host's countdown
+                        synchronizedCountdownInterval = setInterval(() => {
+                            playerPreviewCountdown--;
+                            console.log('[POLL] 🕐 Player preview countdown:', playerPreviewCountdown);
+                            
+                            if (playerPreviewCountdown > 0) {
+                                updateCountdownDisplay(playerPreviewCountdown, 'polling-sync');
+                            } else {
+                                console.log('[POLL] 🎯 Player preview countdown finished!');
+                                clearInterval(synchronizedCountdownInterval);
+                                synchronizedCountdownInterval = null;
+                                // Start polling for live question transition
+                                startPreviewPolling();
+                            }
+                        }, 1000);
                         
                         // Update quiz title with correct question number
                         const quizTitle = document.querySelector('#countdown-screen .quiz-title');
@@ -1170,9 +1214,7 @@
                     answerSubmitted = false; // Reset for new question
                     enableOptionButtons(); // Re-enable buttons for new question
                     
-                    if (quizState.countdown !== undefined) {
-                        updateCountdownDisplay(quizState.countdown, 'quiz-state-preview');
-                    }
+                    // Update quiz title
                     const previewTitle = document.querySelector('#countdown-screen .quiz-title');
                     if (previewTitle && quizState.questionData) {
                         previewTitle.textContent = `Question ${(quizState.currentQuestion || 0) + 1}`;
@@ -1183,10 +1225,46 @@
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
                     }
-                    // If host provided a precise live start time, synchronize to it
+                    
+                    // Start synchronized countdown for player to match host's 10-second countdown
+                    console.log('🕐 Starting synchronized player countdown for question preview');
+                    let playerPreviewCountdown = quizState.countdown || 10;
+                    updateCountdownDisplay(playerPreviewCountdown, 'quiz-state-preview');
+                    
+                    // Clear any existing countdown interval
+                    if (synchronizedCountdownInterval) {
+                        clearInterval(synchronizedCountdownInterval);
+                        synchronizedCountdownInterval = null;
+                    }
+                    
+                    // Start countdown timer that matches host's countdown
+                    synchronizedCountdownInterval = setInterval(() => {
+                        playerPreviewCountdown--;
+                        console.log('🕐 Player preview countdown:', playerPreviewCountdown);
+                        
+                        if (playerPreviewCountdown > 0) {
+                            updateCountdownDisplay(playerPreviewCountdown, 'synchronized-preview');
+                        } else {
+                            console.log('🎯 Player preview countdown finished! Ready for live question...');
+                            clearInterval(synchronizedCountdownInterval);
+                            synchronizedCountdownInterval = null;
+                            
+                            // Start polling for live question transition
+                            startPreviewPolling();
+                        }
+                    }, 1000);
+                    
+                    // If host provided a precise live start time, use that for even better synchronization
                     try {
                         const liveStartISO = quizState.questionData?.liveStartISO;
                         if (liveStartISO) {
+                            console.log('🎯 Using precise live start time for synchronization');
+                            // Clear the basic countdown and use precise timing instead
+                            if (synchronizedCountdownInterval) {
+                                clearInterval(synchronizedCountdownInterval);
+                                synchronizedCountdownInterval = null;
+                            }
+                            
                             const target = new Date(liveStartISO).getTime();
                             const tick = () => {
                                 const secondsLeft = Math.ceil((target - Date.now()) / 1000);
@@ -1206,7 +1284,7 @@
                             };
                             tick();
                         } else {
-                            // Fallback: force after 6s and start polling
+                            // Fallback: force after countdown completes and start polling
                             previewFallbackTimeout = setTimeout(() => {
                                 const questionScreen = document.getElementById('question-screen');
                                 if (!questionScreen.classList.contains('active')) {
@@ -1217,7 +1295,7 @@
                                     questionScreen.classList.add('active');
                                     startPreviewPolling();
                                 }
-                            }, 6000);
+                            }, 11000); // 11 seconds to account for potential delays
                         }
                     } catch {}
                     break;
@@ -1404,10 +1482,32 @@
                                     answerSubmitted = false;
                                     enableOptionButtons();
                                     
-                                    // Get countdown from multiple possible locations
-                                    const countdown = data.countdown || data.question_data?.countdown || 10;
-                                    console.log(`[IMMEDIATE CHECK ${delay}ms] Countdown value:`, countdown);
-                                    updateCountdownDisplay(countdown, 'immediate-check');
+                                    // Start synchronized countdown for player to match host's countdown
+                                    let playerPreviewCountdown = data.countdown || data.question_data?.countdown || 10;
+                                    console.log(`[IMMEDIATE CHECK ${delay}ms] Starting synchronized countdown:`, playerPreviewCountdown);
+                                    updateCountdownDisplay(playerPreviewCountdown, 'immediate-check');
+                                    
+                                    // Clear any existing countdown interval
+                                    if (synchronizedCountdownInterval) {
+                                        clearInterval(synchronizedCountdownInterval);
+                                        synchronizedCountdownInterval = null;
+                                    }
+                                    
+                                    // Start countdown timer that matches host's countdown
+                                    synchronizedCountdownInterval = setInterval(() => {
+                                        playerPreviewCountdown--;
+                                        console.log(`[IMMEDIATE CHECK] 🕐 Player preview countdown:`, playerPreviewCountdown);
+                                        
+                                        if (playerPreviewCountdown > 0) {
+                                            updateCountdownDisplay(playerPreviewCountdown, 'immediate-check-sync');
+                                        } else {
+                                            console.log(`[IMMEDIATE CHECK] 🎯 Player preview countdown finished!`);
+                                            clearInterval(synchronizedCountdownInterval);
+                                            synchronizedCountdownInterval = null;
+                                            // Start polling for live question transition
+                                            startPreviewPolling();
+                                        }
+                                    }, 1000);
                                     
                                     const quizTitle = document.querySelector('#countdown-screen .quiz-title');
                                     if (quizTitle && data.question_data) {
