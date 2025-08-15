@@ -1447,6 +1447,15 @@
                     // After showing results, start polling for either scoreboard or final-results
                     console.log('🔍 Starting transition polling from results screen...');
                     startResultsTransitionPolling();
+                    
+                    // BACKUP: Also start final results polling as backup (in case scoreboard logic fails)
+                    console.log('🔍 [BACKUP] Starting final results polling as backup...');
+                    setTimeout(() => {
+                        if (!finalResultsPollingInterval) {
+                            console.log('🔍 [BACKUP] Starting final results polling after 3 seconds...');
+                            startFinalResultsPolling();
+                        }
+                    }, 3000);
                     break;
                     
                 case 'scoreboard':
@@ -1464,10 +1473,12 @@
                     // Check if this is the last question - if so, prepare for final results
                     const totalQuestions = 2; // Update this to match your quiz length
                     const currentQuestionNum = (quizState.currentQuestion || 0) + 1;
-                    console.log('📊 Question progress:', currentQuestionNum, '/', totalQuestions);
+                    console.log('📊 [SCOREBOARD] Question progress:', currentQuestionNum, '/', totalQuestions);
+                    console.log('📊 [SCOREBOARD] Current question index:', quizState.currentQuestion);
+                    console.log('📊 [SCOREBOARD] Calculated question number:', currentQuestionNum);
                     
                     if (currentQuestionNum >= totalQuestions) {
-                        console.log('🏁 Last question completed! Waiting for final results...');
+                        console.log('🏁 [SCOREBOARD] Last question completed! Starting final results polling...');
                         // Show loading screen but prepare for final results
                         showScreen('loading-screen');
                         const loadingTitle = document.querySelector('#loading-screen .loading-title');
@@ -1662,7 +1673,8 @@
                 return;
             }
             
-            console.log('[FINAL POLL] 🏁 Starting final results polling...');
+            console.log('[FINAL POLL] 🏁 Starting final results polling for game:', currentGameCode);
+            console.log('[FINAL POLL] Current screen:', document.querySelector('.screen.active')?.id);
             finalResultsPollingInterval = setInterval(async () => {
                 try {
                     console.log('[FINAL POLL] 🔍 Checking for final-results phase...');
@@ -1677,7 +1689,9 @@
                         return;
                     }
                     
-                    console.log('[FINAL POLL] 📊 Phase:', data?.phase);
+                    console.log('[FINAL POLL] 📊 Current phase:', data?.phase);
+                    console.log('[FINAL POLL] 📊 Current question:', data?.current_question);
+                    console.log('[FINAL POLL] 📊 Current screen:', document.querySelector('.screen.active')?.id);
                     
                     if (data && data.phase === 'final-results') {
                         console.log('[FINAL POLL] 🎉 Final results phase detected! Transitioning...');
@@ -1685,8 +1699,11 @@
                         finalResultsPollingInterval = null;
                         
                         resetCountdownTracking();
+                        console.log('[FINAL POLL] 🚀 Showing final-results-screen...');
                         showScreen('final-results-screen');
+                        console.log('[FINAL POLL] 🏆 Calling updateFinalResults...');
                         await updateFinalResults();
+                        console.log('[FINAL POLL] ✅ Final results transition complete!');
                     }
                 } catch (err) {
                     console.error('[FINAL POLL] Exception:', err);
