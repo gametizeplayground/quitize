@@ -484,8 +484,10 @@
             answerSubmitted = true;
             
             try {
-                // Submit answer to Supabase
-                await GameDB.submitAnswer(currentGameCode, playerId, 0, answer, timeTaken);
+                // Submit answer to Supabase with correct question index
+                const questionIndex = lastQuestionSeen >= 0 ? lastQuestionSeen : 0;
+                console.log('🎯 Submitting answer for question index:', questionIndex, 'Answer:', answer);
+                await GameDB.submitAnswer(currentGameCode, playerId, questionIndex, answer, timeTaken);
                 
                 // Disable all buttons
                 document.querySelectorAll('.option-button').forEach(btn => {
@@ -1165,6 +1167,13 @@
                             updateScoreDisplay();
                             questionStartTime = Date.now();
                             enableOptionButtons(); // Re-enable buttons for new question
+                            
+                            // Update quiz title on question screen
+                            const questionTitle = document.querySelector('#question-screen .quiz-title');
+                            if (questionTitle && data.current_question !== null && data.current_question !== undefined) {
+                                questionTitle.textContent = `Question ${data.current_question + 1}`;
+                            }
+                            
                             if (data.question_data) {
                                 updateQuestionContent(data.question_data);
                             }
@@ -1348,6 +1357,13 @@
                         lastAnswerTimeTaken = 0;
                         enableOptionButtons(); // Re-enable buttons for new question
                         
+                        // Update quiz title on question screen
+                        const questionTitle = document.querySelector('#question-screen .quiz-title');
+                        if (questionTitle && typeof quizState.currentQuestion === 'number') {
+                            questionTitle.textContent = `Question ${quizState.currentQuestion + 1}`;
+                            console.log('🎯 Quiz title updated to:', `Question ${quizState.currentQuestion + 1}`);
+                        }
+                        
                         // Update question content if available
                         if (quizState.questionData) {
                             updateQuestionContent(quizState.questionData);
@@ -1364,6 +1380,13 @@
                             lastAnswerTimeTaken = 0;
                             document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
                             document.getElementById('question-screen').classList.add('active');
+                            
+                            // Update quiz title on question screen
+                            const questionTitle = document.querySelector('#question-screen .quiz-title');
+                            if (questionTitle) {
+                                questionTitle.textContent = `Question ${quizState.currentQuestion + 1}`;
+                                console.log('🎯 Quiz title updated to:', `Question ${quizState.currentQuestion + 1}`);
+                            }
                         } else {
                             console.log('🎯 Player has already submitted answer, staying on current screen');
                         }
