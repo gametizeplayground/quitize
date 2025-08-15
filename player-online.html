@@ -248,7 +248,6 @@
         <!-- Final Results Screen -->
         <div class="screen" id="final-results-screen">
             <div class="final-results-content">
-                <h1 class="quiz-title">Game Over!</h1>
                 
                 <!-- Player's Final Position and Badge -->
                 <div class="player-final-position">
@@ -279,6 +278,8 @@
             </div>
         </div>
     </div>
+
+
 
     <script>
         let currentGameCode = '';
@@ -1635,12 +1636,17 @@
                         });
                     } else if (data && data.phase === 'final-results') {
                         console.log('[RESULTS TRANSITION] 🎉 Detected final-results phase directly!');
+                        console.log('[RESULTS TRANSITION] 🔄 Current screen before transition:', document.querySelector('.screen.active')?.id);
                         clearInterval(resultsTransitionPollingInterval);
                         resultsTransitionPollingInterval = null;
                         
                         resetCountdownTracking();
+                        console.log('[RESULTS TRANSITION] 🚀 Transitioning to final-results-screen...');
                         showScreen('final-results-screen');
+                        console.log('[RESULTS TRANSITION] 🔄 Current screen after transition:', document.querySelector('.screen.active')?.id);
+                        console.log('[RESULTS TRANSITION] 🎯 Calling updateFinalResults...');
                         await updateFinalResults();
+                        console.log('[RESULTS TRANSITION] ✅ Final results update complete!');
                     }
                 } catch (err) {
                     console.error('[RESULTS TRANSITION] Exception:', err);
@@ -1691,7 +1697,14 @@
         // Update final results screen with player ranking and badges
         async function updateFinalResults() {
             try {
-                console.log('🏆 Updating final results for player:', playerName);
+                console.log('🏆 [FINAL UPDATE] Starting final results update for player:', playerName);
+                console.log('🏆 [FINAL UPDATE] Current game code:', currentGameCode);
+                
+                // Verify final results screen is visible
+                const finalScreen = document.getElementById('final-results-screen');
+                const isActive = finalScreen?.classList.contains('active');
+                console.log('🏆 [FINAL UPDATE] Final results screen exists:', !!finalScreen);
+                console.log('🏆 [FINAL UPDATE] Final results screen is active:', isActive);
                 
                 // Get session data and all players to calculate ranking
                 const [session, playerRows] = await Promise.all([
