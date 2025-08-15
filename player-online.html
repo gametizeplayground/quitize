@@ -512,19 +512,35 @@
         // Fallback polling: wait for phase 'results' then switch
         function startResultsPolling() {
             if (resultsPollingInterval) return;
+            console.log('🔄 [RESULTS POLLING] Starting results polling for game:', currentGameCode);
             resultsPollingInterval = setInterval(async () => {
                 try {
+                    console.log('🔄 [RESULTS POLLING] Checking for results phase...');
                     const { data, error } = await window.supabaseClient
                         .from('quiz_states')
                         .select('*')
                         .eq('game_code', currentGameCode)
                         .single();
-                    if (error) return;
+                    if (error) {
+                        console.error('🔄 [RESULTS POLLING] Database error:', error);
+                        return;
+                    }
+                    console.log('🔄 [RESULTS POLLING] Current phase:', data?.phase);
                     if (data && data.phase === 'results') {
+                        console.log('🔄 [RESULTS POLLING] ✅ Results phase detected! Triggering handleQuizStateUpdate...');
                         clearInterval(resultsPollingInterval);
                         resultsPollingInterval = null;
                         // Move to results and compute display
-                        showScreen('results-screen');
+                        handleQuizStateUpdate({
+                            detail: {
+                                gameCode: currentGameCode,
+                                quizState: {
+                                    phase: data.phase,
+                                    currentQuestion: data.current_question,
+                                    questionData: data.question_data
+                                }
+                            }
+                        });
                         const question = data.question_data;
                         try {
                             let isCorrect = false;
@@ -707,6 +723,32 @@
                     console.log('  - Updated At:', data?.updated_at);
                     console.log('  - Current Screen:', document.querySelector('.screen.active')?.id);
                     console.log('  - Answer Submitted:', answerSubmitted);
+                    
+                    // 🚨 EMERGENCY FINAL RESULTS CHECK - Always check for final-results in main polling
+                    if (data && data.phase === 'final-results') {
+                        console.log('[POLL] 🚨 EMERGENCY: Final results phase detected in main polling!');
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
+                        showScreen('final-results-screen');
+                        await updateFinalResults();
+                        return;
+                    }
+                    
+                    // 🚨 EMERGENCY RESULTS CHECK - Also check for results phase
+                    if (data && data.phase === 'results') {
+                        console.log('[POLL] 🚨 EMERGENCY: Results phase detected in main polling!');
+                        handleQuizStateUpdate({
+                            detail: {
+                                gameCode: currentGameCode,
+                                quizState: {
+                                    phase: data.phase,
+                                    currentQuestion: data.current_question,
+                                    questionData: data.question_data
+                                }
+                            }
+                        });
+                        return;
+                    }
                     
                     if (data && data.phase === 'question-preview') {
                         console.log('[POLL] ✅ Detected question-preview phase! Transitioning from results to countdown...');
@@ -1416,7 +1458,11 @@
                     break;
                     
                 case 'results':
-                    console.log('Moving to results phase');
+                    console.log('🎯 [QUIZ STATE] Moving to results phase!');
+                    console.log('🎯 [QUIZ STATE] Current screen during results:', document.querySelector('.screen.active')?.id);
+                    console.log('🎯 [QUIZ STATE] Quiz state data:', JSON.stringify(quizState));
+                    console.log('🎯 [QUIZ STATE] Game code:', currentGameCode);
+                    console.log('🎯 [QUIZ STATE] Player:', playerName);
                     resetCountdownTracking();
                     showScreen('results-screen');
                     updatePlayerDisplay();
@@ -1459,7 +1505,10 @@
                     if (resultsPollingInterval) { clearInterval(resultsPollingInterval); resultsPollingInterval = null; }
                     
                     // After showing results, start polling for either scoreboard or final-results
-                    console.log('🔍 Starting transition polling from results screen...');
+                    console.log('🔍 [RESULTS] Starting transition polling from results screen...');
+                    console.log('🔍 [RESULTS] Current screen:', document.querySelector('.screen.active')?.id);
+                    console.log('🔍 [RESULTS] Current game code:', currentGameCode);
+                    console.log('🔍 [RESULTS] Player name:', playerName);
                     startResultsTransitionPolling();
                     
                     // BACKUP: Also start final results polling as backup (in case scoreboard logic fails)
@@ -1634,7 +1683,7 @@
             console.log('[RESULTS TRANSITION] 🔄 Starting transition polling from results screen...');
             resultsTransitionPollingInterval = setInterval(async () => {
                 try {
-                    console.log('[RESULTS TRANSITION] 🔍 Checking for phase changes...');
+                    console.log('[RESULTS TRANSITION] 🔍 Checking for phase changes for game:', currentGameCode);
                     const { data, error } = await window.supabaseClient
                         .from('quiz_states')
                         .select('*')
@@ -1643,11 +1692,15 @@
                     
                     if (error) {
                         console.error('[RESULTS TRANSITION] ❌ Database error:', error);
+                        console.error('[RESULTS TRANSITION] ❌ Error details:', JSON.stringify(error));
                         return;
                     }
                     
+                    console.log('[RESULTS TRANSITION] 📊 RAW DATABASE DATA:', JSON.stringify(data));
                     console.log('[RESULTS TRANSITION] 📊 Current phase:', data?.phase);
                     console.log('[RESULTS TRANSITION] 📊 Current question:', data?.current_question);
+                    console.log('[RESULTS TRANSITION] 📊 Updated at:', data?.updated_at);
+                    console.log('[RESULTS TRANSITION] 📊 Current screen on player:', document.querySelector('.screen.active')?.id);
                     
                     if (data && data.phase === 'scoreboard') {
                         console.log('[RESULTS TRANSITION] ➡️ Detected scoreboard phase');
