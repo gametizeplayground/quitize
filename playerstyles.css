@@ -676,25 +676,27 @@ body::before {
 }
 
 /* Result Screen Styles */
-/* Quiz Result Screen Styles - Much Larger */
+/* Quiz Result Screen Styles - Properly Centered */
 .quiz-result-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 2rem;
+    padding: 1rem 2rem;
     width: 100%;
-    min-height: calc(900vh - 150px);
-    padding-bottom: 100px;
-    gap: 2rem;
+    height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+    gap: 1.5rem;
+    overflow: hidden;
 }
 
 .result-title {
     color: white;
     font-size: 3.5rem;
     font-weight: 700;
-    margin-top: 8rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     line-height: 1;
 }
@@ -706,9 +708,10 @@ body::before {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    margin-bottom: 0;
+    margin: 0;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
     position: relative;
+    flex-shrink: 0;
 }
 
 .result-icon.correct {
@@ -731,9 +734,10 @@ body::before {
     color: white;
     font-size: 4rem;
     font-weight: 700;
-    padding: 1.5rem 3rem;
+    padding: 1rem 2.5rem;
     border-radius: 80px;
-    margin-bottom: 0;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 /* Legacy styles for backward compatibility */
