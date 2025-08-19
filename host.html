@@ -23,7 +23,6 @@
             <div class="code-section">
                 <div class="game-key-label">GAME CODE</div>
                 <div class="game-code" id="display-game-code">255 8657</div>
-                <div class="game-url">Join at: quitize.game/play</div>
             </div>
             <div class="qr-section">
                 <div class="qr-code">
@@ -51,6 +50,14 @@
     <!-- Player count moved to bottom right -->
     <div class="player-count-bottom">
         <span id="player-count">0</span> players
+    </div>
+
+    <!-- Music and Fullscreen Controls -->
+    <div class="controls-bottom">
+        <div class="control-pill">
+            <img src="assets/music_off.png" alt="Music Off" id="music-icon" class="control-icon" title="Toggle Music (M)">
+            <img src="assets/fullscreen.png" alt="Fullscreen" class="control-icon fullscreen-icon" title="Toggle Fullscreen (F)">
+        </div>
     </div>
 
     <!-- Quiz Countdown Screen -->
@@ -248,6 +255,8 @@
         let gameStarted = false;
         let currentQuestionIndex = 0;
         let questionTimer;
+        let isMusicOn = false;
+        let backgroundMusic;
 
         const quizQuestions = [
             {
@@ -315,10 +324,8 @@
                 qrCodeImage.alt = 'QR Code unavailable';
             };
             
-            // Update the URL text to show the actual domain
-            const gameUrlElement = document.querySelector('.game-url');
+            // Domain information for reference
             const domain = window.location.hostname === 'localhost' ? 'quitize.game' : window.location.hostname;
-            gameUrlElement.textContent = `Join at: game.quitize.com/play`;
             
             console.log('QR Code generated for URL:', gameURL);
         }
@@ -593,7 +600,8 @@
             
             previewScreen.classList.add('active');
             
-            let previewCountdown = 5;
+            // Use 10-second countdown for next questions (after first question)
+            let previewCountdown = currentQuestionIndex > 0 ? 10 : 5;
             
             // Update quiz state for players
             updateQuizState({
@@ -606,7 +614,7 @@
             // Start preview timer
             const timerBar = document.getElementById('preview-timer-bar');
             timerBar.style.width = '100%';
-            timerBar.style.transitionDuration = '5s';
+            timerBar.style.transitionDuration = `${previewCountdown}s`;
             
             setTimeout(() => {
                 timerBar.style.width = '0%';
@@ -627,11 +635,12 @@
                 }
             }, 1000);
             
-            // After 5 seconds, show live question
+            // After countdown ends, show live question
+            const duration = currentQuestionIndex > 0 ? 10000 : 5000;
             setTimeout(() => {
                 previewScreen.classList.remove('active');
                 showLiveQuestion();
-            }, 5000);
+            }, duration);
         }
 
         // Show live question screen
@@ -951,12 +960,19 @@
             currentQuestionIndex++;
             
             if (currentQuestionIndex < quizQuestions.length) {
-                // Move to next question
-                setTimeout(() => showQuestionPreview(), 1000);
+                // Start 10-second countdown for next question
+                startNextQuestionCountdown();
             } else {
                 // Quiz ended - show final leaderboard
                 showFinalLeaderboard();
             }
+        }
+
+        // Start 10-second countdown before next question
+        function startNextQuestionCountdown() {
+            // For next questions, go directly to question preview with 10-second countdown
+            // (Generic countdown screen is only for the very first question)
+            showQuestionPreview();
         }
 
         // Show final leaderboard with celebration
@@ -1087,6 +1103,73 @@
             updateStartButton();
         }
 
+        // Initialize music with default soundtrack
+        function initializeMusic() {
+            backgroundMusic = new Audio('assets/soundtrack/Answer That Now!.mp3');
+            backgroundMusic.loop = true;
+            backgroundMusic.volume = 0.5;
+            
+            // Load saved music state from localStorage
+            const savedMusicState = localStorage.getItem('quitize_music_on');
+            if (savedMusicState !== null) {
+                isMusicOn = savedMusicState === 'true';
+            }
+            
+            // Update icon to reflect current state (default to music off)
+            if (!isMusicOn) {
+                document.getElementById('music-icon').src = 'assets/music_off.png';
+            } else {
+                document.getElementById('music-icon').src = 'assets/music_on.png';
+                document.getElementById('music-icon').classList.add('playing');
+            }
+            
+            // Start playing music if it was on
+            if (isMusicOn) {
+                backgroundMusic.play().catch(e => console.log('Music autoplay blocked:', e));
+            }
+        }
+
+        // Toggle music on/off
+        function toggleMusic() {
+            const musicIcon = document.getElementById('music-icon');
+            
+            if (isMusicOn) {
+                backgroundMusic.pause();
+                musicIcon.src = 'assets/music_off.png';
+                musicIcon.classList.remove('playing');
+                isMusicOn = false;
+                // Save music state to localStorage
+                localStorage.setItem('quitize_music_on', 'false');
+            } else {
+                backgroundMusic.play();
+                musicIcon.src = 'assets/music_on.png';
+                musicIcon.classList.add('playing');
+                isMusicOn = true;
+                // Save music state to localStorage
+                localStorage.setItem('quitize_music_on', 'true');
+            }
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Initialize controls event listeners
+        function initializeControls() {
+            // Music toggle
+            document.getElementById('music-icon').addEventListener('click', toggleMusic);
+            
+            // Fullscreen toggle
+            document.querySelector('.fullscreen-icon').addEventListener('click', toggleFullscreen);
+        }
+
         // Initialize the game
         function initializeGame() {
             generateGameCode();
@@ -1096,6 +1179,10 @@
             
             // Start listening for players joining from localStorage
             startPlayerListener();
+            
+            // Initialize music and controls
+            initializeMusic();
+            initializeControls();
         }
 
         // Handle keyboard shortcuts
@@ -1104,6 +1191,16 @@
                 if (!document.getElementById('start-btn').disabled) {
                     startGame();
                 }
+            }
+            
+            // Music toggle with 'M' key
+            if (event.key.toLowerCase() === 'm') {
+                toggleMusic();
+            }
+            
+            // Fullscreen toggle with 'F' key
+            if (event.key.toLowerCase() === 'f') {
+                toggleFullscreen();
             }
         });
 

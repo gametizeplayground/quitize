@@ -108,10 +108,7 @@ body::before {
     letter-spacing: 1px;
 }
 
-.game-url {
-    color: #888;
-    font-size: 1rem;
-}
+
 
 .qr-section {
     margin-left: 2rem;
@@ -230,7 +227,7 @@ body::before {
 .player-count-bottom {
     position: fixed;
     bottom: 2rem;
-    right: 2rem;
+    right: 10rem;
     background: white;
     color: #333;
     padding: 0.8rem 1.5rem;
@@ -239,6 +236,79 @@ body::before {
     font-size: 0.9rem;
     box-shadow: 0 6px 0 rgba(219, 219, 219, 0.8);
     z-index: 10;
+}
+
+/* Music and Fullscreen Controls */
+.controls-bottom {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 10;
+}
+
+/* Responsive positioning for smaller screens */
+@media (max-width: 768px) {
+    .controls-bottom {
+        right: 1rem;
+    }
+    
+    .player-count-bottom {
+        right: 7rem;
+    }
+}
+
+.control-pill {
+    background: white;
+    border-radius: 25px;
+    padding: 0.8rem 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 6px 0 rgba(219, 219, 219, 0.8);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.control-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 rgba(219, 219, 219, 0.8);
+}
+
+.control-icon {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.control-icon:hover {
+    transform: scale(1.1);
+}
+
+.control-icon:active {
+    transform: scale(0.95);
+}
+
+.music-icon {
+    cursor: pointer;
+}
+
+.fullscreen-icon {
+    cursor: pointer;
+}
+
+/* Add subtle pulse animation for music icon when playing */
+@keyframes musicPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.music-icon.playing {
+    animation: musicPulse 2s ease-in-out infinite;
 }
 
 .no-players {
