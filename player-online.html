@@ -549,7 +549,7 @@
                                 const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
                                 isCorrect = selectedIndex === question.correct;
                                 if (isCorrect) {
-                                    const questionTimeLimit = 20; // seconds
+                                    const questionTimeLimit = 20; // seconds (player side uses hardcoded for compatibility)
                                     const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
                                     pointsGained = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
                                 }
@@ -919,24 +919,36 @@
             console.log('✅ [DEBUG] Countdown update complete:', count);
         }
 
-        // Update question content
+        // Update question content (simple player interface)
         function updateQuestionContent(questionData) {
-            console.log('📝 Updating question content:', questionData);
+            console.log('📝 Updating question content for player interface:', questionData);
             
-            // Update question title
-            const titleElements = document.querySelectorAll('.quiz-title');
-            titleElements.forEach(element => {
-                if (element) element.textContent = questionData.title;
-            });
-            
-            // Update question options if they exist
-            const optionButtons = document.querySelectorAll('.option-button');
-            if (optionButtons.length >= 4 && questionData.options) {
-                optionButtons[0].textContent = 'A';
-                optionButtons[1].textContent = 'B'; 
-                optionButtons[2].textContent = 'C';
-                optionButtons[3].textContent = 'D';
-                console.log('✅ Question options updated');
+            try {
+                // For player interface, just hide C and D buttons if it's a True/False question
+                const optionButtons = [
+                    document.querySelector('.option-a'),
+                    document.querySelector('.option-b'),
+                    document.querySelector('.option-c'),
+                    document.querySelector('.option-d')
+                ];
+                
+                if (questionData.options && questionData.options.length === 2) {
+                    // True/False question - hide C and D buttons
+                    optionButtons[0].style.display = 'flex'; // A
+                    optionButtons[1].style.display = 'flex'; // B
+                    optionButtons[2].style.display = 'none'; // C
+                    optionButtons[3].style.display = 'none'; // D
+                    console.log('✅ True/False question layout applied');
+                } else {
+                    // Multiple choice question - show all buttons
+                    optionButtons.forEach(btn => {
+                        if (btn) btn.style.display = 'flex';
+                    });
+                    console.log('✅ Multiple choice question layout applied');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error updating question content:', error);
             }
         }
 
@@ -1140,6 +1152,10 @@
                 clearInterval(resultsPollingInterval);
                 resultsPollingInterval = null;
             }
+            if (universalResultsPollingInterval) {
+                clearInterval(universalResultsPollingInterval);
+                universalResultsPollingInterval = null;
+            }
             if (previewPollingInterval) {
                 clearInterval(previewPollingInterval);
                 previewPollingInterval = null;
@@ -1186,6 +1202,9 @@
 
         // Fallback: if stuck on preview screen, force transition after 6 seconds
         let previewFallbackTimeout = null;
+        
+        // Fallback: if player is still on question screen when timer should end, force transition
+        let questionTimeoutFallback = null;
 
         // Fallback: if stuck on preview screen, poll quiz_states every 2s
         let previewPollingInterval = null;
@@ -1234,6 +1253,9 @@
                             if (data.question_data) {
                                 updateQuestionContent(data.question_data);
                             }
+                            
+                            // Start universal polling for unanswered players
+                            startUniversalResultsPolling();
                             
                             console.log('[PREVIEW POLL] ✅ Successfully transitioned to question screen');
                         } else {
@@ -1427,6 +1449,9 @@
                             console.log('🎯 Question content updated');
                         }
                         
+                        // Start universal polling for results phase (for unanswered players)
+                        startUniversalResultsPolling();
+                        
                         console.log('🎯 ✅ Live question transition complete!');
                     } else {
                         // If answerSubmitted is true but this is a new question index, clear it and transition
@@ -1444,6 +1469,9 @@
                                 questionTitle.textContent = `Question ${quizState.currentQuestion + 1}`;
                                 console.log('🎯 Quiz title updated to:', `Question ${quizState.currentQuestion + 1}`);
                             }
+                            
+                            // Start universal polling for results phase
+                            startUniversalResultsPolling();
                         } else {
                             console.log('🎯 Player has already submitted answer, staying on current screen');
                         }
@@ -1463,6 +1491,14 @@
                     console.log('🎯 [QUIZ STATE] Quiz state data:', JSON.stringify(quizState));
                     console.log('🎯 [QUIZ STATE] Game code:', currentGameCode);
                     console.log('🎯 [QUIZ STATE] Player:', playerName);
+                    
+                    // Clear universal polling since we're now transitioning to results
+                    if (universalResultsPollingInterval) {
+                        clearInterval(universalResultsPollingInterval);
+                        universalResultsPollingInterval = null;
+                        console.log('🛑 Cleared universal results polling');
+                    }
+                    
                     resetCountdownTracking();
                     showScreen('results-screen');
                     updatePlayerDisplay();
@@ -1470,28 +1506,37 @@
                     try {
                         const question = quizState.questionData;
                         let message = 'Great job!';
+                        let isCorrect = false;
+                        let pointsGained = 0;
+                        
                         if (question && lastSelectedAnswer) {
+                            // Player submitted an answer
                             const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
-                            const isCorrect = selectedIndex === question.correct;
-                            let pointsGained = 0;
+                            isCorrect = selectedIndex === question.correct;
                             if (isCorrect) {
-                                const questionTimeLimit = 20; // seconds
+                                const questionTimeLimit = 20; // seconds (player side uses hardcoded for compatibility)
                                 const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
                                 pointsGained = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
                             }
                             message = isCorrect ? `Correct! +${pointsGained}` : 'Wrong! +0';
+                        } else {
+                            // Player didn't answer - mark as wrong
+                            console.log('⏰ Player did not answer - marking as wrong');
+                            isCorrect = false;
+                            pointsGained = 0;
+                            message = 'No answer submitted! +0';
                         }
+                        
                         const titleEl = document.getElementById('result-title');
                         const iconEl = document.getElementById('result-icon');
                         const iconSym = document.getElementById('result-icon-symbol');
                         const pointsEl = document.getElementById('result-points');
-                        const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
-                        const isCorrect = question && selectedIndex === question.correct;
+                        
                         if (titleEl && iconEl && iconSym && pointsEl) {
                             titleEl.textContent = isCorrect ? 'Correct' : 'Wrong';
                             iconEl.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
                             iconSym.textContent = isCorrect ? '✓' : '✗';
-                            pointsEl.textContent = isCorrect ? message.replace('Correct! ', '') : '+0';
+                            pointsEl.textContent = isCorrect ? `+${pointsGained}` : '+0';
                         }
                         // Also try to reflect persisted score from session if available
                         GameDB.getGameSession(currentGameCode).then(session => {
@@ -1540,7 +1585,7 @@
                     }
                     
                     // Check if this is the last question - if so, prepare for final results
-                    const totalQuestions = 2; // Update this to match your quiz length
+                    const totalQuestions = 5; // Updated for Gametize History & Fun Facts Quiz
                     const currentQuestionNum = (quizState.currentQuestion || 0) + 1;
                     console.log('📊 [SCOREBOARD] Question progress:', currentQuestionNum, '/', totalQuestions);
                     console.log('📊 [SCOREBOARD] Current question index:', quizState.currentQuestion);
@@ -1736,6 +1781,110 @@
                     console.error('[RESULTS TRANSITION] Exception:', err);
                 }
             }, 200); // Fast polling for immediate response
+        }
+
+        // Universal polling for results phase - ensures all players (including unanswered) transition to results
+        let universalResultsPollingInterval = null;
+        function startUniversalResultsPolling() {
+            if (universalResultsPollingInterval) {
+                console.log('[UNIVERSAL POLL] Universal results polling already active, clearing and restarting...');
+                clearInterval(universalResultsPollingInterval);
+                universalResultsPollingInterval = null;
+            }
+            
+            console.log('[UNIVERSAL POLL] 🔄 Starting universal results polling for all players...');
+            universalResultsPollingInterval = setInterval(async () => {
+                try {
+                    console.log('[UNIVERSAL POLL] 🔍 Checking for results phase...');
+                    const { data, error } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    
+                    if (error) {
+                        console.error('[UNIVERSAL POLL] ❌ Database error:', error);
+                        return;
+                    }
+                    
+                    console.log('[UNIVERSAL POLL] 📊 Current phase:', data?.phase);
+                    console.log('[UNIVERSAL POLL] 📊 Current screen:', document.querySelector('.screen.active')?.id);
+                    console.log('[UNIVERSAL POLL] 📊 Answer submitted:', answerSubmitted);
+                    
+                    if (data && data.phase === 'results') {
+                        console.log('[UNIVERSAL POLL] 🎉 Results phase detected! Forcing transition for all players...');
+                        clearInterval(universalResultsPollingInterval);
+                        universalResultsPollingInterval = null;
+                        
+                        // FORCE immediate screen transition to results - don't rely on handleQuizStateUpdate
+                        console.log('[UNIVERSAL POLL] Current screen before force transition:', document.querySelector('.screen.active')?.id);
+                        document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                        document.getElementById('results-screen').classList.add('active');
+                        console.log('[UNIVERSAL POLL] Screen forcefully changed to results-screen');
+                        
+                        // Update player display
+                        updatePlayerDisplay();
+                        
+                        // Compute and display result for unanswered players
+                        try {
+                            const question = data.question_data;
+                            let isCorrect = false;
+                            let pointsGained = 0;
+                            
+                            if (question && lastSelectedAnswer) {
+                                // Player submitted an answer
+                                const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
+                                isCorrect = selectedIndex === question.correct;
+                                if (isCorrect) {
+                                    const questionTimeLimit = 20;
+                                    const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
+                                    pointsGained = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
+                                }
+                            } else {
+                                // Player didn't answer - mark as wrong
+                                console.log('[UNIVERSAL POLL] ⏰ Player did not answer - marking as wrong');
+                                isCorrect = false;
+                                pointsGained = 0;
+                            }
+                            
+                            // Update results display
+                            const titleEl = document.getElementById('result-title');
+                            const iconEl = document.getElementById('result-icon');
+                            const iconSym = document.getElementById('result-icon-symbol');
+                            const pointsEl = document.getElementById('result-points');
+                            
+                            if (titleEl && iconEl && iconSym && pointsEl) {
+                                titleEl.textContent = isCorrect ? 'Correct' : 'Wrong';
+                                iconEl.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
+                                iconSym.textContent = isCorrect ? '✓' : '✗';
+                                pointsEl.textContent = isCorrect ? `+${pointsGained}` : '+0';
+                            }
+                            
+                            console.log('[UNIVERSAL POLL] ✅ Results display updated for player');
+                        } catch (e) {
+                            console.warn('[UNIVERSAL POLL] Error updating results display:', e);
+                        }
+                        
+                        // Update score from session
+                        try {
+                            const session = await GameDB.getGameSession(currentGameCode);
+                            if (session && session.scores && session.scores[playerName] != null) {
+                                currentScore = session.scores[playerName];
+                                updateScoreDisplay();
+                            }
+                        } catch (e) {
+                            console.warn('[UNIVERSAL POLL] Error updating score:', e);
+                        }
+                        
+                        // Start results transition polling for next phase
+                        startResultsTransitionPolling();
+                        
+                        console.log('[UNIVERSAL POLL] ✅ Universal results transition complete!');
+                    }
+                } catch (err) {
+                    console.error('[UNIVERSAL POLL] Exception:', err);
+                }
+            }, 500); // Poll every 500ms for immediate response
         }
 
         // Start polling specifically for final results phase

@@ -1,4 +1,18 @@
 <!DOCTYPE html>
+<!--
+GAMETIZE HISTORY & FUN FACTS QUIZ - HOST INTERFACE
+================================================
+
+To modify the quiz:
+1. Update the quiz title in the head section (around line 62)
+2. Edit the 'quizQuestions' array (around line 260)
+3. Add/remove questions with title, image, options, correct answer index, and explanation
+4. Update QUIZ_CONFIG settings for timing and scoring (around line 304)
+5. Add corresponding images to assets/questions image/ folder (1.png, 2.png, etc.)
+
+Player interface will automatically show simple A/B/C/D buttons.
+Host interface displays full question content and images.
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -56,7 +70,7 @@
     <!-- Quiz Countdown Screen -->
     <div class="quiz-screen" id="quiz-countdown-screen">
         <div class="quiz-header">
-            <div class="quiz-title">Fruits</div>
+            <div class="quiz-title">GAMETIZE HISTORY & FUN FACTS</div>
         </div>
         <div class="countdown-circle">
                 <span id="quiz-countdown">10</span>
@@ -247,20 +261,70 @@
         let currentQuestionIndex = 0;
         let questionTimer;
 
+        // ============================================================
+        // GAMETIZE HISTORY & FUN FACTS QUIZ
+        // ============================================================
+        // To add/modify questions:
+        // 1. Update the quizQuestions array below
+        // 2. Add corresponding question images to assets/questions image/ folder
+        // 3. Update the image path to match the question number (1.png, 2.png, etc.)
+        // 4. Set the correct answer index (0=A, 1=B, 2=C, 3=D)
+        // ============================================================
+        
         const quizQuestions = [
             {
-                title: "What colour is watermelon?",
-                image: "assets/watermelon.jpg",
-                options: ["Yellow", "Red", "White", "Green"],
-                correct: 3
+                title: "In which year was Gametize officially founded?",
+                image: "assets/questions image/1.png",
+                options: ["2005", "2009", "2011", "2014"],
+                correct: 1, // B) 2009
+                explanation: "Gametize was officially founded in 2009."
             },
             {
-                title: "Which fruit is this?",
-                image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=300&fit=crop",
-                options: ["Apple", "Orange", "Banana", "Grape"],
-                correct: 0
+                title: "Gametize started as a project in a university hackathon before becoming a company.",
+                image: "assets/questions image/2.png",
+                options: ["True", "False"],
+                correct: 0, // A) True
+                explanation: "Yes, Gametize started as a hackathon project before becoming a company."
+            },
+            {
+                title: "Which of the following best describes Gametize's core platform function?",
+                image: "assets/questions image/3.png",
+                options: [
+                    "Video conferencing and file sharing",
+                    "Gamification for engagement, training, and marketing",
+                    "Project management and task tracking",
+                    "Cryptocurrency trading and blockchain solutions"
+                ],
+                correct: 1, // B) Gamification for engagement, training, and marketing
+                explanation: "Gametize specializes in gamification for engagement, training, and marketing."
+            },
+            {
+                title: "The first prototype of Gametize was created under which name?",
+                image: "assets/questions image/4.png",
+                options: ["PlayMaki", "GameMaki", "FameLeague", "Socialico"],
+                correct: 1, // B) GameMaki
+                explanation: "The first prototype was called GameMaki before becoming Gametize."
+            },
+            {
+                title: "Which Gametize feature rewards players with certificates?",
+                image: "assets/questions image/5.png",
+                options: ["Leaderboards", "Quest Challenges", "Digital Credentials", "Power-Ups"],
+                correct: 2, // C) Digital Credentials
+                explanation: "Digital Credentials is the feature that rewards players with certificates."
             }
         ];
+        
+        // Configuration settings for easy customization
+        const QUIZ_CONFIG = {
+            questionTimeLimit: 20, // seconds per question
+            previewCountdown: 10,  // seconds for question preview
+            resultsDisplayTime: 5, // seconds to show results
+            pointsConfig: {
+                maxPoints: 1000,
+                minPoints: 500,
+                timeBonus: true // award bonus points for faster answers
+            }
+        };
 
         // Generate random game code
         async function generateGameCode() {
@@ -586,7 +650,7 @@
             document.querySelector('.header').style.display = 'none';
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
-            let countdown = 10; // total time until live question across topic (5s) + preview (5s)
+            let countdown = QUIZ_CONFIG.previewCountdown; // configurable countdown time
             const countdownElement = document.getElementById('quiz-countdown');
             countdownElement.textContent = countdown;
             const startTimestamp = new Date(startTimeISO).getTime();
@@ -716,11 +780,12 @@
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'live-question',
                 currentQuestion: currentQuestionIndex,
-                questionData: question
+                questionData: question,
+                timeLeft: QUIZ_CONFIG.questionTimeLimit
             });
             
-            // Start question timer (20 seconds for answering)
-            let questionTime = 20;
+            // Start question timer (configurable seconds for answering)
+            let questionTime = QUIZ_CONFIG.questionTimeLimit;
             const timerElement = document.getElementById('question-timer');
             timerElement.textContent = questionTime;
             
@@ -800,23 +865,53 @@
                     .select('player_id, name')
                     .eq('game_code', currentGameCode);
                 const idToName = (playerRows || []).reduce((acc, r) => { acc[r.player_id] = r.name; return acc; }, {});
+                
                 // Build score updates per name
-                const questionTimeLimit = 20; // seconds
+                const questionTimeLimit = QUIZ_CONFIG.questionTimeLimit;
                 const session = await GameDB.getGameSession(currentGameCode);
                 const scores = session?.scores || {};
+                
+                // Create a set of players who answered this question
+                const answeredPlayers = new Set();
+                
+                // Process submitted answers
                 answers.forEach(a => {
                     const name = idToName[a.player_id];
                     if (!name) return;
+                    answeredPlayers.add(name);
+                    
                     const idx = ['A','B','C','D'].indexOf(a.answer);
                     const isCorrect = idx === question.correct;
                     let points = 0;
                     if (isCorrect) {
-                        const t = Math.min(Number(a.time_taken || 0), questionTimeLimit);
-                        points = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
+                        if (QUIZ_CONFIG.pointsConfig.timeBonus) {
+                            const t = Math.min(Number(a.time_taken || 0), questionTimeLimit);
+                            const basePoints = QUIZ_CONFIG.pointsConfig.minPoints;
+                            const bonusPoints = QUIZ_CONFIG.pointsConfig.maxPoints - QUIZ_CONFIG.pointsConfig.minPoints;
+                            points = Math.max(basePoints, Math.min(QUIZ_CONFIG.pointsConfig.maxPoints, 
+                                Math.round((1 - (t / questionTimeLimit)) * bonusPoints + basePoints)));
+                        } else {
+                            points = QUIZ_CONFIG.pointsConfig.maxPoints;
+                        }
                     }
                     scores[name] = (scores[name] || 0) + points;
                 });
+                
+                // Handle players who didn't answer - mark as wrong and give 0 points
+                Object.values(idToName).forEach(playerName => {
+                    if (!answeredPlayers.has(playerName)) {
+                        console.log(`⏰ Player ${playerName} didn't answer - marking as wrong with 0 points`);
+                        scores[playerName] = (scores[playerName] || 0) + 0; // 0 points for no answer
+                        
+                        // Create a dummy answer record for unanswered players so they can see results
+                        // This ensures all players transition to results page
+                        GameDB.submitAnswer(currentGameCode, 'unanswered', currentQuestionIndex, 'X', questionTimeLimit)
+                            .catch(e => console.warn('Failed to create dummy answer for unanswered player:', e));
+                    }
+                });
+                
                 await GameDB.updateGameSession(currentGameCode, { scores });
+                console.log(`✅ Processed scores for ${Object.keys(scores).length} players (including unanswered)`);
             } catch (e) {
                 console.warn('Failed to persist scores:', e);
             }
