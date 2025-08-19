@@ -37,7 +37,6 @@ Host interface displays full question content and images.
             <div class="code-section">
                 <div class="game-key-label">GAME CODE</div>
                 <div class="game-code" id="display-game-code">255 8657</div>
-                <div class="game-url">Join at: quitize.game/play</div>
             </div>
             <div class="qr-section">
                 <div class="qr-code">
@@ -65,6 +64,14 @@ Host interface displays full question content and images.
     <!-- Player count moved to bottom right -->
     <div class="player-count-bottom">
         <span id="player-count">0</span> players
+    </div>
+
+    <!-- Music and Fullscreen Controls -->
+    <div class="controls-bottom">
+        <div class="control-pill">
+            <img src="assets/music_off.png" alt="Music Off" id="music-icon" class="control-icon" title="Toggle Music (M)">
+            <img src="assets/fullscreen.png" alt="Fullscreen" class="control-icon fullscreen-icon" title="Toggle Fullscreen (F)">
+        </div>
     </div>
 
     <!-- Quiz Countdown Screen -->
@@ -260,6 +267,8 @@ Host interface displays full question content and images.
         let gameStarted = false;
         let currentQuestionIndex = 0;
         let questionTimer;
+        let isMusicOn = false;
+        let backgroundMusic;
 
         // ============================================================
         // GAMETIZE HISTORY & FUN FACTS QUIZ
@@ -409,10 +418,8 @@ Host interface displays full question content and images.
                 qrCodeImage.alt = 'QR Code unavailable';
             };
             
-            // Update the URL text to show the actual domain
-            const gameUrlElement = document.querySelector('.game-url');
+            // Domain information for reference
             const domain = window.location.hostname === 'localhost' ? 'quitize.game' : window.location.hostname;
-            gameUrlElement.textContent = `Join at: game.quitize.com/play`;
             
             console.log('QR Code generated for URL:', gameURL);
         }
@@ -1297,6 +1304,73 @@ Host interface displays full question content and images.
             updateStartButton();
         }
 
+        // Initialize music with default soundtrack
+        function initializeMusic() {
+            backgroundMusic = new Audio('assets/soundtrack/Answer That Now!.mp3');
+            backgroundMusic.loop = true;
+            backgroundMusic.volume = 0.5;
+            
+            // Load saved music state from localStorage
+            const savedMusicState = localStorage.getItem('quitize_music_on');
+            if (savedMusicState !== null) {
+                isMusicOn = savedMusicState === 'true';
+            }
+            
+            // Update icon to reflect current state (default to music off)
+            if (!isMusicOn) {
+                document.getElementById('music-icon').src = 'assets/music_off.png';
+            } else {
+                document.getElementById('music-icon').src = 'assets/music_on.png';
+                document.getElementById('music-icon').classList.add('playing');
+            }
+            
+            // Start playing music only if it was previously turned on
+            if (isMusicOn) {
+                backgroundMusic.play().catch(e => console.log('Music autoplay blocked:', e));
+            }
+        }
+
+        // Toggle music on/off
+        function toggleMusic() {
+            const musicIcon = document.getElementById('music-icon');
+            
+            if (isMusicOn) {
+                backgroundMusic.pause();
+                musicIcon.src = 'assets/music_off.png';
+                musicIcon.classList.remove('playing');
+                isMusicOn = false;
+                // Save music state to localStorage
+                localStorage.setItem('quitize_music_on', 'false');
+            } else {
+                backgroundMusic.play();
+                musicIcon.src = 'assets/music_on.png';
+                musicIcon.classList.add('playing');
+                isMusicOn = true;
+                // Save music state to localStorage
+                localStorage.setItem('quitize_music_on', 'true');
+            }
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Initialize controls event listeners
+        function initializeControls() {
+            // Music toggle
+            document.getElementById('music-icon').addEventListener('click', toggleMusic);
+            
+            // Fullscreen toggle
+            document.querySelector('.fullscreen-icon').addEventListener('click', toggleFullscreen);
+        }
+
         // Initialize the game
         async function initializeGame() {
             try {
@@ -1312,6 +1386,10 @@ Host interface displays full question content and images.
                 startPlayerListener();
                 // Periodic refresh for player list (fallback for real-time)
                 setInterval(updatePlayerListFromSession, 3000);
+                
+                // Initialize music and controls
+                initializeMusic();
+                initializeControls();
             } catch (error) {
                 console.error('Error during game initialization:', error);
                 alert('Failed to initialize game. Please refresh the page and try again.');
@@ -1324,6 +1402,16 @@ Host interface displays full question content and images.
                 if (!document.getElementById('start-btn').disabled) {
                     startGame();
                 }
+            }
+            
+            // Music toggle with 'M' key
+            if (event.key.toLowerCase() === 'm') {
+                toggleMusic();
+            }
+            
+            // Fullscreen toggle with 'F' key
+            if (event.key.toLowerCase() === 'f') {
+                toggleFullscreen();
             }
         });
 
