@@ -48,6 +48,138 @@ html {
     }
 }
 
+/* Fix for mobile keyboard white space issue */
+@media screen and (max-height: 600px) {
+    body {
+        min-height: 100vh;
+        min-height: 100svh; /* Small viewport height for mobile keyboard */
+        overflow: hidden;
+    }
+    
+    html {
+        min-height: 100vh;
+        min-height: 100svh; /* Small viewport height for mobile keyboard */
+        overflow: hidden;
+    }
+    
+    .container {
+        min-height: 100vh;
+        min-height: 100svh; /* Small viewport height for mobile keyboard */
+        overflow: hidden;
+    }
+    
+    .screen {
+        min-height: 100vh;
+        min-height: 100svh; /* Small viewport height for mobile keyboard */
+        overflow: hidden;
+    }
+    
+    body::before {
+        height: 100vh;
+        height: 100svh; /* Small viewport height for mobile keyboard */
+    }
+}
+
+/* Additional fix for when keyboard is visible */
+@media screen and (max-height: 500px) {
+    body {
+        background-attachment: scroll; /* Changed from fixed to prevent white space */
+        min-height: auto;
+        height: 100vh;
+        height: 100svh;
+    }
+    
+    html {
+        min-height: auto;
+        height: 100vh;
+        height: 100svh;
+    }
+    
+    .container {
+        min-height: auto;
+        height: 100vh;
+        height: 100svh;
+    }
+    
+    .screen {
+        min-height: auto;
+        height: 100vh;
+        height: 100svh;
+    }
+    
+    body::before {
+        height: 100vh;
+        height: 100svh;
+        position: absolute; /* Changed from fixed to prevent white space */
+    }
+}
+
+/* Specific fix for iOS Safari keyboard issues */
+@supports (-webkit-appearance: none) {
+    @media screen and (max-height: 600px) {
+        body {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            background-attachment: scroll;
+        }
+        
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            height: 100svh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Prevent input zoom on iOS */
+        input[type="text"], input[type="email"], input[type="password"] {
+            font-size: 16px !important;
+            transform: translateZ(0);
+            -webkit-appearance: none;
+            border-radius: 0;
+        }
+    }
+}
+
+/* CSS Custom Properties for dynamic viewport height */
+:root {
+    --vh: 1vh;
+}
+
+/* Use custom viewport height when keyboard is visible */
+@media screen and (max-width: 768px) {
+    body.keyboard-visible {
+        height: calc(var(--vh, 1vh) * 100);
+        min-height: calc(var(--vh, 1vh) * 100);
+        background-attachment: scroll;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        left: 0;
+        overflow: hidden;
+    }
+    
+    body.keyboard-visible .container {
+        height: calc(var(--vh, 1vh) * 100);
+        min-height: calc(var(--vh, 1vh) * 100);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    body.keyboard-visible .screen {
+        height: calc(var(--vh, 1vh) * 100);
+        min-height: calc(var(--vh, 1vh) * 100);
+    }
+    
+    body.keyboard-visible::before {
+        height: calc(var(--vh, 1vh) * 100);
+        position: absolute;
+    }
+}
+
 /* Background Pattern */
 body::before {
     content: '';
