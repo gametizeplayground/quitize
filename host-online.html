@@ -62,12 +62,12 @@ Host interface displays full question content and images.
     </div>
 
     <!-- Player count moved to bottom right -->
-    <div class="player-count-bottom">
+    <div class="player-count-bottom" id="player-count-container">
         <span id="player-count">0</span> players
     </div>
 
     <!-- Music and Fullscreen Controls -->
-    <div class="controls-bottom">
+    <div class="controls-bottom" id="controls-container">
         <div class="control-pill">
             <img src="assets/music_off.png" alt="Music Off" id="music-icon" class="control-icon" title="Toggle Music (M)">
             <img src="assets/fullscreen.png" alt="Fullscreen" class="control-icon fullscreen-icon" title="Toggle Fullscreen (F)">
@@ -652,9 +652,11 @@ Host interface displays full question content and images.
         // Synchronized countdown function (ensure only one countdown runs)
         let hostSynchronizedCountdownInterval = null;
         function showSynchronizedCountdown(startTimeISO) {
-            // Hide main container and header ONLY when countdown actually begins
+            // Hide main container, header, player count, and controls ONLY when countdown actually begins
             document.querySelector('.main-container').style.display = 'none';
             document.querySelector('.header').style.display = 'none';
+            document.getElementById('player-count-container').style.display = 'none';
+            document.getElementById('controls-container').style.display = 'none';
             const countdownScreen = document.getElementById('quiz-countdown-screen');
             countdownScreen.classList.add('active');
             let countdown = QUIZ_CONFIG.previewCountdown; // configurable countdown time
@@ -692,6 +694,10 @@ Host interface displays full question content and images.
             previewScreen.querySelector('.quiz-title').textContent = question.title;
             previewScreen.querySelector('.question-counter').textContent = `${currentQuestionIndex + 1}/${quizQuestions.length}`;
             previewScreen.querySelector('.question-image').src = question.image;
+            
+            // Ensure player count and controls are hidden during question preview
+            document.getElementById('player-count-container').style.display = 'none';
+            document.getElementById('controls-container').style.display = 'none';
             
             previewScreen.classList.add('active');
             
@@ -779,6 +785,10 @@ Host interface displays full question content and images.
             optionTexts[2].textContent = question.options[2]; // C
             optionTexts[3].textContent = question.options[3]; // D
             
+            // Ensure player count and controls are hidden during live question
+            document.getElementById('player-count-container').style.display = 'none';
+            document.getElementById('controls-container').style.display = 'none';
+            
             liveScreen.classList.add('active');
             // Mark game started when the question goes live
             try { await GameDB.updateGameSession(currentGameCode, { status: 'started' }); } catch (e) { console.warn('Failed to set started status:', e); }
@@ -861,6 +871,10 @@ Host interface displays full question content and images.
                     }
                 }
             });
+            
+            // Ensure player count and controls are hidden during results
+            document.getElementById('player-count-container').style.display = 'none';
+            document.getElementById('controls-container').style.display = 'none';
             
             resultsScreen.classList.add('active');
 
@@ -945,6 +959,10 @@ Host interface displays full question content and images.
             
             // Update player scores
             updatePlayerScores();
+            
+            // Ensure player count and controls are hidden during scoreboard
+            document.getElementById('player-count-container').style.display = 'none';
+            document.getElementById('controls-container').style.display = 'none';
             
             scoreboardScreen.classList.add('active');
         }
@@ -1066,6 +1084,10 @@ Host interface displays full question content and images.
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'final-results'
             });
+            
+            // Ensure player count and controls are hidden during final leaderboard
+            document.getElementById('player-count-container').style.display = 'none';
+            document.getElementById('controls-container').style.display = 'none';
             
             finalScreen.classList.add('active');
             
@@ -1268,6 +1290,10 @@ Host interface displays full question content and images.
                 // Reset to waiting room with new game
                 resetToWaitingRoom();
                 
+                // Ensure player count and controls are visible in new game
+                document.getElementById('player-count-container').style.display = 'block';
+                document.getElementById('controls-container').style.display = 'block';
+                
                 console.log('✅ New game created with code:', currentGameCode);
                 
             } catch (error) {
@@ -1284,6 +1310,8 @@ Host interface displays full question content and images.
             
             document.querySelector('.main-container').style.display = 'flex';
             document.querySelector('.header').style.display = 'flex';
+            document.getElementById('player-count-container').style.display = 'block';
+            document.getElementById('controls-container').style.display = 'block';
             
             gameStarted = false;
             currentQuestionIndex = 0;
