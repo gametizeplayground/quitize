@@ -371,13 +371,15 @@ const GameDB = {
 
     // Add player to game
     async addPlayer(gameCode, player) {
+        const now = new Date().toISOString();
         const { data, error } = await window.supabaseClient
             .from(TABLES.PLAYERS)
             .insert({
                 game_code: gameCode,
                 name: player.name,
                 player_id: player.id,
-                joined_at: new Date().toISOString()
+                joined_at: now,
+                last_seen: now
             })
             .select()
             .single();

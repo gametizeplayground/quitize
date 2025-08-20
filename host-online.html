@@ -491,10 +491,44 @@ Host interface displays full question content and images.
             return data;
         }
 
+        // Cleanup inactive players (those who haven't been seen for more than 60 seconds)
+        async function cleanupInactivePlayers() {
+            try {
+                const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+                
+                // Find inactive players
+                const { data: inactivePlayers, error } = await window.supabaseClient
+                    .from('players')
+                    .select('*')
+                    .eq('game_code', currentGameCode)
+                    .lt('last_seen', oneMinuteAgo);
+                
+                if (error) {
+                    console.error('Error finding inactive players:', error);
+                    return;
+                }
+                
+                // Remove inactive players
+                if (inactivePlayers && inactivePlayers.length > 0) {
+                    console.log(`Removing ${inactivePlayers.length} inactive players:`, inactivePlayers.map(p => p.name));
+                    
+                    for (const player of inactivePlayers) {
+                        await GameDB.removePlayer(currentGameCode, player.player_id);
+                    }
+                }
+            } catch (error) {
+                console.error('Error cleaning up inactive players:', error);
+            }
+        }
+
         // Update player list from Supabase
         async function updatePlayerListFromSession() {
             try {
                 console.log('Fetching players for game code:', currentGameCode);
+                
+                // First, cleanup inactive players
+                await cleanupInactivePlayers();
+                
                 const playerRows = await fetchPlayersFromTable(currentGameCode);
                 console.log('Fetched player rows:', playerRows);
                 const newPlayers = playerRows.map(p => p.name);

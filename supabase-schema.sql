@@ -28,6 +28,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'game_sessions' AND column_name = 'next_question_signal') THEN
         ALTER TABLE game_sessions ADD COLUMN next_question_signal INTEGER;
     END IF;
+    
+    -- Add last_seen column to players if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'players' AND column_name = 'last_seen') THEN
+        ALTER TABLE players ADD COLUMN last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
 END $$;
 
 -- Game Sessions Table
@@ -50,6 +55,7 @@ CREATE TABLE IF NOT EXISTS players (
     player_id VARCHAR(50) NOT NULL,
     name VARCHAR(50) NOT NULL,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(game_code, player_id),
     FOREIGN KEY (game_code) REFERENCES game_sessions(game_code) ON DELETE CASCADE
 );

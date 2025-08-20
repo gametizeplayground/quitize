@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <title>Quitize - Join Game</title>
     <link rel="stylesheet" href="playerstyles.css">
     <link rel="manifest" href="manifest.json">
@@ -381,6 +381,8 @@
                 console.log('✅ Player successfully joined game. Waiting for real-time updates...');
                 // Start fallback polling
                 startWaitingRoomPolling();
+                // Start heartbeat to maintain connection
+                startHeartbeat();
                 
             } catch (error) {
                 console.error('Error joining game:', error);
@@ -1170,10 +1172,69 @@
             }
         }
 
-        // Clean up on page unload
-        window.addEventListener('beforeunload', function() {
+        // Player heartbeat system to detect disconnections
+        let heartbeatInterval = null;
+        
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            
+            heartbeatInterval = setInterval(async () => {
+                if (playerId && currentGameCode) {
+                    try {
+                        // Update player's last_seen timestamp
+                        await window.supabaseClient
+                            .from('players')
+                            .update({ 
+                                last_seen: new Date().toISOString() 
+                            })
+                            .eq('game_code', currentGameCode)
+                            .eq('player_id', playerId);
+                    } catch (error) {
+                        console.log('Heartbeat failed:', error);
+                    }
+                }
+            }, 30000); // Update every 30 seconds
+        }
+        
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+        }
+        
+        // Clean up player on disconnect
+        async function removePlayerOnDisconnect() {
+            if (playerId && currentGameCode) {
+                try {
+                    await GameDB.removePlayer(currentGameCode, playerId);
+                    console.log('Player removed successfully');
+                } catch (error) {
+                    console.log('Failed to remove player:', error);
+                }
+            }
+            stopHeartbeat();
             cleanupSubscriptions();
             cleanupPollingIntervals();
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', removePlayerOnDisconnect);
+        
+        // Also listen for other disconnect events
+        window.addEventListener('pagehide', removePlayerOnDisconnect);
+        window.addEventListener('unload', removePlayerOnDisconnect);
+        
+        // Listen for visibility change (when tab becomes hidden)
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                // Player might be closing the tab, remove them after a delay
+                setTimeout(() => {
+                    if (document.visibilityState === 'hidden') {
+                        removePlayerOnDisconnect();
+                    }
+                }, 5000); // Wait 5 seconds to see if they come back
+            }
         });
 
         // Initialize when page loads
@@ -2038,6 +2099,43 @@
         }
 
         window.addEventListener('quizStateUpdated', handleQuizStateUpdate);
+
+        // Mobile keyboard viewport fix
+        function handleMobileKeyboard() {
+            const initialViewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            
+            function setViewportHeight() {
+                const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                document.documentElement.style.setProperty('--vh', `${vh * 0.01}px`);
+                
+                // Add class when keyboard is likely visible
+                if (vh < initialViewportHeight * 0.8) {
+                    document.body.classList.add('keyboard-visible');
+                } else {
+                    document.body.classList.remove('keyboard-visible');
+                }
+            }
+            
+            // Set initial height
+            setViewportHeight();
+            
+            // Update on resize
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', setViewportHeight);
+            } else {
+                window.addEventListener('resize', setViewportHeight);
+            }
+            
+            // For iOS Safari, also listen to orientationchange
+            window.addEventListener('orientationchange', () => {
+                setTimeout(setViewportHeight, 100);
+            });
+        }
+        
+        // Initialize mobile keyboard fix
+        if (window.innerWidth <= 768) {
+            handleMobileKeyboard();
+        }
     </script>
 </body>
 </html> 
