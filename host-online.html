@@ -269,6 +269,12 @@ Host interface displays full question content and images.
         let questionTimer;
         let isMusicOn = false;
         let backgroundMusic;
+        
+        // Sound effects
+        let gameStartSound;
+        let lastCountdownSound;
+        let timesUpSound;
+        let crowdsSound;
 
         // ============================================================
         // GAMETIZE HISTORY & FUN FACTS QUIZ
@@ -618,6 +624,15 @@ Host interface displays full question content and images.
 
                 gameStarted = true;
 
+                // Stop background music and play game start sound
+                if (backgroundMusic && isMusicOn) {
+                    backgroundMusic.pause();
+                }
+                if (gameStartSound) {
+                    gameStartSound.currentTime = 0; // Reset to beginning
+                    gameStartSound.play().catch(e => console.log('Game start sound blocked:', e));
+                }
+
                 // Synchronized start: set status to 'starting' and set start_time 5 seconds in the future
                 const startTime = Date.now() + 10000; // 10 seconds from now
                 let retries = 3;
@@ -844,7 +859,19 @@ Host interface displays full question content and images.
                 questionTime--;
                 if (questionTime > 0) {
                     timerElement.textContent = questionTime;
+                    
+                    // Play last countdown sound when 10 seconds remain
+                    if (questionTime === 10 && lastCountdownSound) {
+                        lastCountdownSound.currentTime = 0; // Reset to beginning
+                        lastCountdownSound.play().catch(e => console.log('Last countdown sound blocked:', e));
+                    }
                 } else {
+                    // Play time's up sound
+                    if (timesUpSound) {
+                        timesUpSound.currentTime = 0; // Reset to beginning
+                        timesUpSound.play().catch(e => console.log('Times up sound blocked:', e));
+                    }
+                    
                     clearInterval(questionTimer);
                     liveScreen.classList.remove('active');
                     showQuestionResults();
@@ -1125,6 +1152,12 @@ Host interface displays full question content and images.
             
             finalScreen.classList.add('active');
             
+            // Play crowds sound effect for celebration
+            if (crowdsSound) {
+                crowdsSound.currentTime = 0; // Reset to beginning
+                crowdsSound.play().catch(e => console.log('Crowds sound blocked:', e));
+            }
+            
             // Start confetti animation
             createConfetti();
             
@@ -1372,10 +1405,13 @@ Host interface displays full question content and images.
             backgroundMusic.loop = true;
             backgroundMusic.volume = 0.5;
             
-            // Load saved music state from localStorage
+            // Load saved music state from localStorage (default to off)
             const savedMusicState = localStorage.getItem('quitize_music_on');
             if (savedMusicState !== null) {
                 isMusicOn = savedMusicState === 'true';
+            } else {
+                // Default to music off for first-time users
+                isMusicOn = false;
             }
             
             // Update icon to reflect current state (default to music off)
@@ -1390,6 +1426,20 @@ Host interface displays full question content and images.
             if (isMusicOn) {
                 backgroundMusic.play().catch(e => console.log('Music autoplay blocked:', e));
             }
+        }
+
+        // Initialize sound effects
+        function initializeSoundEffects() {
+            gameStartSound = new Audio('assets/soundeffect/gamestart.mp3');
+            lastCountdownSound = new Audio('assets/soundeffect/lastcountdown.MP3');
+            timesUpSound = new Audio('assets/soundeffect/timesup.mp3');
+            crowdsSound = new Audio('assets/soundeffect/crowds.mp3');
+            
+            // Set volumes
+            gameStartSound.volume = 0.7;
+            lastCountdownSound.volume = 0.8;
+            timesUpSound.volume = 0.8;
+            crowdsSound.volume = 0.6;
         }
 
         // Toggle music on/off
@@ -1449,8 +1499,9 @@ Host interface displays full question content and images.
                 // Periodic refresh for player list (fallback for real-time)
                 setInterval(updatePlayerListFromSession, 3000);
                 
-                // Initialize music and controls
+                // Initialize music, sound effects and controls
                 initializeMusic();
+                initializeSoundEffects();
                 initializeControls();
             } catch (error) {
                 console.error('Error during game initialization:', error);
