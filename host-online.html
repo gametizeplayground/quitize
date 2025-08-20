@@ -61,6 +61,11 @@ Host interface displays full question content and images.
         </button>
     </div>
 
+    <!-- Live Reactions Display Area -->
+    <div class="reactions-display" id="reactions-display">
+        <!-- Floating reactions will appear here -->
+    </div>
+
     <!-- Player count moved to bottom right -->
     <div class="player-count-bottom" id="player-count-container">
         <span id="player-count">0</span> players
@@ -1338,6 +1343,7 @@ Host interface displays full question content and images.
                 
                 // Clean up subscriptions for the old game
                 cleanupSubscriptions();
+                cleanupReactionSystem();
                 
                 // Reset all game state
                 players = [];
@@ -1353,6 +1359,9 @@ Host interface displays full question content and images.
                 // Generate a new game code and create new session
                 console.log('🎮 Generating new game code...');
                 await generateGameCode();
+                
+                // Reinitialize reaction system for new game
+                initializeReactionSystem(currentGameCode);
                 
                 // Reset to waiting room with new game
                 resetToWaitingRoom();
@@ -1483,6 +1492,101 @@ Host interface displays full question content and images.
             document.querySelector('.fullscreen-icon').addEventListener('click', toggleFullscreen);
         }
 
+        // Live Reaction System
+        let reactionChannel = null;
+        let activeReactions = 0;
+        const MAX_ACTIVE_REACTIONS = 50; // Limit simultaneous floating reactions for performance
+        
+        function initializeReactionSystem(gameCode) {
+            console.log('🎉 Initializing reaction system for game:', gameCode);
+            
+            if (reactionChannel) {
+                window.supabaseClient.removeChannel(reactionChannel);
+            }
+            
+            const channelName = `reactions_${gameCode}`;
+            reactionChannel = window.supabaseClient.channel(channelName, {
+                config: { broadcast: { self: false } }
+            });
+            
+            reactionChannel.on('broadcast', { event: 'reaction' }, (payload) => {
+                console.log('🎉 Received reaction:', payload.payload);
+                handleReaction(payload.payload);
+            });
+            
+            reactionChannel.subscribe((status) => {
+                console.log('🎉 Reaction channel status:', status);
+            });
+        }
+        
+        function handleReaction(reactionData) {
+            const { emoji, playerName, burst } = reactionData;
+            createFloatingReaction(emoji, burst);
+            console.log(`🎉 ${playerName} sent ${emoji}${burst ? ' (burst!)' : ''}`);
+        }
+        
+        function getReactionImagePath(reactionType) {
+            const reactionMap = {
+                'clap': 'assets/livereaction/clap.png',
+                'heart': 'assets/livereaction/heart.png',
+                'confetti': 'assets/livereaction/confetti.png'
+            };
+            return reactionMap[reactionType] || 'assets/livereaction/clap.png';
+        }
+        
+        function createFloatingReaction(reactionType, isBurst = false) {
+            // Performance optimization: limit active reactions
+            if (activeReactions >= MAX_ACTIVE_REACTIONS) {
+                console.log('Max reactions reached, skipping');
+                return;
+            }
+            
+            const reactionsDisplay = document.getElementById('reactions-display');
+            if (!reactionsDisplay) return;
+            
+            activeReactions++;
+            
+            const reaction = document.createElement('div');
+            reaction.className = `floating-reaction${isBurst ? ' burst' : ''}`;
+            
+            // Create image element for the reaction
+            const img = document.createElement('img');
+            img.src = getReactionImagePath(reactionType);
+            img.alt = reactionType;
+            img.className = 'floating-reaction-image';
+            reaction.appendChild(img);
+            
+            // Position reaction at bottom left area (near player count)
+            const startX = Math.random() * 300 + 50; // Random X between 50-350px from left
+            const startY = window.innerHeight - 100; // Start near bottom
+            
+            reaction.style.left = startX + 'px';
+            reaction.style.top = startY + 'px';
+            
+            // Add random horizontal drift
+            const drift = (Math.random() - 0.5) * 200;
+            reaction.style.setProperty('--drift', drift + 'px');
+            
+            reactionsDisplay.appendChild(reaction);
+            
+            // Remove reaction after animation completes
+            const duration = isBurst ? 2500 : 3000;
+            setTimeout(() => {
+                if (reaction.parentNode) {
+                    reaction.parentNode.removeChild(reaction);
+                    activeReactions = Math.max(0, activeReactions - 1);
+                }
+            }, duration);
+        }
+        
+        // Clean up reaction system
+        function cleanupReactionSystem() {
+            if (reactionChannel) {
+                window.supabaseClient.removeChannel(reactionChannel);
+                reactionChannel = null;
+            }
+        }
+
         // Initialize the game
         async function initializeGame() {
             try {
@@ -1493,6 +1597,9 @@ Host interface displays full question content and images.
                 updatePlayersDisplay();
                 updatePlayerCount();
                 updateStartButton();
+                
+                // Initialize reaction system
+                initializeReactionSystem(currentGameCode);
                 
                 // Start listening for players joining
                 startPlayerListener();

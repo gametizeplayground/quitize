@@ -45,17 +45,6 @@
                 <!-- Messages -->
                 <div id="message-container"></div>
             </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
-            </div>
         </div>
 
         <!-- Nickname Entry Screen -->
@@ -86,17 +75,6 @@
                 <!-- Messages -->
                 <div id="nickname-message-container"></div>
             </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
-            </div>
         </div>
 
         <!-- Waiting Room Screen -->
@@ -112,20 +90,22 @@
                 <p class="welcome-subtitle">Spot your name on the screen?</p>
                 
                 <div class="form-container">
+                    <!-- Live Reaction Buttons -->
+                    <div class="reaction-buttons">
+                        <button class="reaction-btn" onclick="sendReaction('clap')" title="Clap">
+                            <img src="assets/livereaction/clap.png" alt="Clap" class="reaction-icon">
+                        </button>
+                        <button class="reaction-btn" onclick="sendReaction('heart')" title="Heart">
+                            <img src="assets/livereaction/heart.png" alt="Heart" class="reaction-icon">
+                        </button>
+                        <button class="reaction-btn" onclick="sendReaction('confetti')" title="Celebrate">
+                            <img src="assets/livereaction/confetti.png" alt="Confetti" class="reaction-icon">
+                        </button>
+                    </div>
+                    
                     <button class="leave-room-btn" onclick="leaveRoom()">
                         Leave the room
                     </button>
-                </div>
-            </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
                 </div>
             </div>
         </div>
@@ -139,17 +119,6 @@
             <div class="player-info">
                 <span id="player-name-loading">Player</span>
                 <div class="player-score" id="player-score-loading">0</div>
-            </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
             </div>
         </div>
 
@@ -166,17 +135,6 @@
             <div class="player-info">
                 <span id="player-name-info">Player</span>
                 <div class="player-score" id="player-score-info">0</div>
-            </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
             </div>
         </div>
 
@@ -205,17 +163,6 @@
                 <span id="player-name-question">Player</span>
                 <div class="player-score" id="player-score-question">0</div>
             </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
-            </div>
         </div>
 
         <!-- Results Screen -->
@@ -231,17 +178,6 @@
             <div class="player-info">
                 <span id="player-name-results">Player</span>
                 <div class="player-score" id="player-score-results">0</div>
-            </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
             </div>
         </div>
 
@@ -264,17 +200,6 @@
                 </div>
                 
                 <button class="play-again-btn" onclick="playAgain()">Play Again</button>
-            </div>
-            
-            <div class="footer">
-                <div class="footer-text">
-                    Create your own game for FREE at quitize.com
-                </div>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Terms</a>
-                    <a href="#" class="footer-link">Privacy</a>
-                    <a href="#" class="footer-link">Cookie Notice</a>
-                </div>
             </div>
         </div>
     </div>
@@ -1171,6 +1096,92 @@
             });
         }
 
+        // Live Reaction System
+        let reactionBurstTimeout = null;
+        let reactionCount = 0;
+        let reactionCooldown = false;
+        let lastReactionTime = 0;
+        const REACTION_COOLDOWN_MS = 200; // Minimum 200ms between reactions to prevent spam
+        
+        async function sendReaction(emoji) {
+            if (!currentGameCode || !playerId) {
+                console.log('No game code or player ID available for reaction');
+                return;
+            }
+            
+            // Throttle reactions to prevent spam and maintain performance
+            const now = Date.now();
+            if (reactionCooldown || (now - lastReactionTime) < REACTION_COOLDOWN_MS) {
+                console.log('Reaction throttled');
+                return;
+            }
+            
+            reactionCooldown = true;
+            lastReactionTime = now;
+            
+            // Reset cooldown after minimum interval
+            setTimeout(() => {
+                reactionCooldown = false;
+            }, REACTION_COOLDOWN_MS);
+            
+            try {
+                // Add visual feedback to button
+                const buttons = document.querySelectorAll('.reaction-btn');
+                buttons.forEach(btn => {
+                    const img = btn.querySelector('.reaction-icon');
+                    if (img && img.alt.toLowerCase() === emoji) {
+                        btn.classList.add('sending');
+                        setTimeout(() => btn.classList.remove('sending'), 400);
+                        
+                        // Add burst effect for multiple quick taps
+                        clearTimeout(reactionBurstTimeout);
+                        reactionCount++;
+                        
+                        if (reactionCount > 1) {
+                            btn.classList.add('burst');
+                            setTimeout(() => btn.classList.remove('burst'), 300);
+                        }
+                        
+                        reactionBurstTimeout = setTimeout(() => {
+                            reactionCount = 0;
+                        }, 1000);
+                    }
+                });
+                
+                // Broadcast reaction to all clients using Supabase real-time
+                const channelName = `reactions_${currentGameCode}`;
+                const reactionData = {
+                    emoji: emoji,
+                    playerId: playerId,
+                    playerName: playerName,
+                    timestamp: Date.now(),
+                    burst: reactionCount > 1
+                };
+                
+                console.log('🎉 Sending reaction:', reactionData);
+                
+                const channel = window.supabaseClient.channel(channelName, {
+                    config: { broadcast: { self: false } }
+                });
+                
+                await channel.subscribe();
+                
+                await channel.send({
+                    type: 'broadcast',
+                    event: 'reaction',
+                    payload: reactionData
+                });
+                
+                // Clean up channel after a short delay
+                setTimeout(() => {
+                    window.supabaseClient.removeChannel(channel);
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error sending reaction:', error);
+            }
+        }
+
         // Initialize the game
         function initializeGame() {
             // Check if game code is in URL
@@ -1679,7 +1690,7 @@
                         GameDB.getGameSession(currentGameCode).then(session => {
                             if (session && session.scores && session.scores[playerName] != null) {
                                 currentScore = session.scores[playerName];
-                                updateScoreDisplay();
+                    updateScoreDisplay();
                             }
                         });
                         
