@@ -490,6 +490,10 @@
                 // Submit answer to Supabase with correct question index
                 const questionIndex = lastQuestionSeen >= 0 ? lastQuestionSeen : 0;
                 console.log('🎯 Submitting answer for question index:', questionIndex, 'Answer:', answer);
+                console.log('🐛 [DEBUG SUBMIT] lastQuestionSeen:', lastQuestionSeen);
+                console.log('🐛 [DEBUG SUBMIT] calculated questionIndex:', questionIndex);
+                console.log('🐛 [DEBUG SUBMIT] answer:', answer);
+                console.log('🐛 [DEBUG SUBMIT] timeTaken:', timeTaken);
                 await GameDB.submitAnswer(currentGameCode, playerId, questionIndex, answer, timeTaken);
                 
                 // Disable all buttons
@@ -501,8 +505,8 @@
                 showScreen('loading-screen');
                 const loadingTitle = document.querySelector('#loading-screen .loading-title');
                 if (loadingTitle) loadingTitle.textContent = 'Waiting for other players to answer...';
-                // Start results fallback polling in case realtime misses the results event
-                startResultsPolling();
+                // DISABLED - results polling now handled by quiz state updates only
+                // startResultsPolling();
                 
             } catch (error) {
                 console.error('Error submitting answer:', error);
@@ -511,8 +515,48 @@
             }
         }
 
-        // Fallback polling: wait for phase 'results' then switch
-        function startResultsPolling() {
+        // Simplified transition polling that ONLY checks for phase changes, NO result recalculation
+        function startSimplifiedTransitionPolling() {
+            if (resultsTransitionPollingInterval) {
+                clearInterval(resultsTransitionPollingInterval);
+            }
+            
+            console.log('🔍 [SIMPLE TRANSITION] Starting phase transition polling (NO result recalculation)');
+            
+            resultsTransitionPollingInterval = setInterval(async () => {
+                try {
+                    const { data } = await window.supabaseClient
+                        .from('quiz_states')
+                        .select('*')
+                        .eq('game_code', currentGameCode)
+                        .single();
+                    
+                    if (data) {
+                        console.log('🔍 [SIMPLE TRANSITION] Current phase:', data.phase);
+                        
+                        // ONLY transition to next phases, DO NOT recalculate results
+                        if (data.phase === 'scoreboard') {
+                            console.log('🔍 [SIMPLE TRANSITION] Moving to scoreboard');
+                            clearInterval(resultsTransitionPollingInterval);
+                            resultsTransitionPollingInterval = null;
+                            showScreen('scoreboard-screen');
+                            updatePlayerDisplay();
+                        } else if (data.phase === 'final-results') {
+                            console.log('🔍 [SIMPLE TRANSITION] Moving to final results');
+                            clearInterval(resultsTransitionPollingInterval);
+                            resultsTransitionPollingInterval = null;
+                            showScreen('final-screen');
+                            updatePlayerDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('🔍 [SIMPLE TRANSITION] Error:', error);
+                }
+            }, 2000);
+        }
+
+        // DISABLED - Fallback polling: wait for phase 'results' then switch
+        function startResultsPolling_DISABLED() {
             if (resultsPollingInterval) return;
             console.log('🔄 [RESULTS POLLING] Starting results polling for game:', currentGameCode);
             resultsPollingInterval = setInterval(async () => {
@@ -547,9 +591,16 @@
                         try {
                             let isCorrect = false;
                             let pointsGained = 0;
+                            
+                            console.log('🐛 [DEBUG POLLING] Question data:', JSON.stringify(question));
+                            console.log('🐛 [DEBUG POLLING] Last selected answer:', lastSelectedAnswer);
+                            
                             if (question && lastSelectedAnswer) {
                                 const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
+                                console.log('🐛 [DEBUG POLLING] Selected index:', selectedIndex);
+                                console.log('🐛 [DEBUG POLLING] Correct answer index:', question.correct);
                                 isCorrect = selectedIndex === question.correct;
+                                console.log('🐛 [DEBUG POLLING] Is correct?', isCorrect);
                                 if (isCorrect) {
                                     const questionTimeLimit = 20; // seconds (player side uses hardcoded for compatibility)
                                     const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
@@ -1553,41 +1604,62 @@
                     console.log('🎯 [QUIZ STATE] Game code:', currentGameCode);
                     console.log('🎯 [QUIZ STATE] Player:', playerName);
                     
-                    // Clear universal polling since we're now transitioning to results
+                    // CLEAR ALL POLLING INTERVALS TO PREVENT CONFLICTS
                     if (universalResultsPollingInterval) {
                         clearInterval(universalResultsPollingInterval);
                         universalResultsPollingInterval = null;
                         console.log('🛑 Cleared universal results polling');
                     }
+                    if (resultsPollingInterval) {
+                        clearInterval(resultsPollingInterval);
+                        resultsPollingInterval = null;
+                        console.log('🛑 Cleared results polling');
+                    }
+                    if (resultsTransitionPollingInterval) {
+                        clearInterval(resultsTransitionPollingInterval);
+                        resultsTransitionPollingInterval = null;
+                        console.log('🛑 Cleared results transition polling');
+                    }
+                    if (finalResultsPollingInterval) {
+                        clearInterval(finalResultsPollingInterval);
+                        finalResultsPollingInterval = null;
+                        console.log('🛑 Cleared final results polling');
+                    }
                     
                     resetCountdownTracking();
                     showScreen('results-screen');
                     updatePlayerDisplay();
-                    // Compute and display result locally
+                    
+                    // SINGLE AUTHORITATIVE RESULT CALCULATION - NO OVERRIDES ALLOWED
                     try {
                         const question = quizState.questionData;
-                        let message = 'Great job!';
                         let isCorrect = false;
                         let pointsGained = 0;
+                        
+                        console.log('🎯 [FINAL RESULT] Question data:', JSON.stringify(question));
+                        console.log('🎯 [FINAL RESULT] Last selected answer:', lastSelectedAnswer);
+                        console.log('🎯 [FINAL RESULT] Current question index:', quizState.currentQuestion);
+                        console.log('🎯 [FINAL RESULT] Last question seen:', lastQuestionSeen);
                         
                         if (question && lastSelectedAnswer) {
                             // Player submitted an answer
                             const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
+                            console.log('🎯 [FINAL RESULT] Selected index:', selectedIndex);
+                            console.log('🎯 [FINAL RESULT] Correct answer index:', question.correct);
                             isCorrect = selectedIndex === question.correct;
+                            console.log('🎯 [FINAL RESULT] Is correct?', isCorrect);
                             if (isCorrect) {
-                                const questionTimeLimit = 20; // seconds (player side uses hardcoded for compatibility)
+                                const questionTimeLimit = 20;
                                 const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
                                 pointsGained = Math.max(500, Math.min(1000, Math.round((1 - (t / questionTimeLimit)) * 500 + 500)));
                             }
-                            message = isCorrect ? `Correct! +${pointsGained}` : 'Wrong! +0';
                         } else {
-                            // Player didn't answer - mark as wrong
-                            console.log('⏰ Player did not answer - marking as wrong');
+                            console.log('🎯 [FINAL RESULT] Player did not answer - marking as wrong');
                             isCorrect = false;
                             pointsGained = 0;
-                            message = 'No answer submitted! +0';
                         }
                         
+                        // SET RESULT DISPLAY ONCE AND NEVER OVERRIDE
                         const titleEl = document.getElementById('result-title');
                         const iconEl = document.getElementById('result-icon');
                         const iconSym = document.getElementById('result-icon-symbol');
@@ -1598,39 +1670,29 @@
                             iconEl.className = isCorrect ? 'result-icon correct' : 'result-icon wrong';
                             iconSym.textContent = isCorrect ? '✓' : '✗';
                             pointsEl.textContent = isCorrect ? `+${pointsGained}` : '+0';
+                            
+                            console.log('🎯 [FINAL RESULT] Display set to:', titleEl.textContent);
+                            console.log('🎯 [FINAL RESULT] No more result recalculations will happen');
                         }
-                        // Also try to reflect persisted score from session if available
+                        
+                        // Update score from session
                         GameDB.getGameSession(currentGameCode).then(session => {
                             if (session && session.scores && session.scores[playerName] != null) {
                                 currentScore = session.scores[playerName];
-                    updateScoreDisplay();
+                                updateScoreDisplay();
                             }
                         });
-                    } catch (e) { console.warn('Result display error:', e); }
+                        
+                    } catch (e) { 
+                        console.error('Result display error:', e); 
+                    }
+                    
                     updateScoreDisplay();
-                    if (resultsPollingInterval) { clearInterval(resultsPollingInterval); resultsPollingInterval = null; }
                     
-                    // After showing results, start polling for either scoreboard or final-results
-                    console.log('🔍 [RESULTS] Starting transition polling from results screen...');
-                    console.log('🔍 [RESULTS] Current screen:', document.querySelector('.screen.active')?.id);
-                    console.log('🔍 [RESULTS] Current game code:', currentGameCode);
-                    console.log('🔍 [RESULTS] Player name:', playerName);
-                    startResultsTransitionPolling();
+                    // Start simplified transition polling ONLY for next phase detection
+                    console.log('🔍 [RESULTS] Starting simplified transition polling...');
+                    startSimplifiedTransitionPolling();
                     
-                    // BACKUP: Also start final results polling as backup (in case scoreboard logic fails)
-                    console.log('🔍 [BACKUP] Starting final results polling as backup...');
-                    setTimeout(() => {
-                        if (!finalResultsPollingInterval) {
-                            console.log('🔍 [BACKUP] Starting final results polling after 1 second...');
-                            startFinalResultsPolling();
-                        }
-                    }, 1000);
-                    
-                    // IMMEDIATE BACKUP: Start final results polling immediately as well
-                    console.log('🔍 [IMMEDIATE] Starting immediate final results polling...');
-                    setTimeout(() => {
-                        startFinalResultsPolling();
-                    }, 100);
                     break;
                     
                 case 'scoreboard':
@@ -1659,8 +1721,8 @@
                         const loadingTitle = document.querySelector('#loading-screen .loading-title');
                         if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                         
-                        // Start polling for final-results phase more aggressively
-                        startFinalResultsPolling();
+                        // DISABLED - final results polling replaced by simplified version
+                        // startFinalResultsPolling();
                     } else {
                         console.log('➡️ More questions remaining, waiting for host to click Next...');
                         // Show loading screen and IMMEDIATELY start aggressive polling for next question
@@ -1892,10 +1954,16 @@
                             let isCorrect = false;
                             let pointsGained = 0;
                             
+                            console.log('🐛 [DEBUG UNIVERSAL] Question data:', JSON.stringify(question));
+                            console.log('🐛 [DEBUG UNIVERSAL] Last selected answer:', lastSelectedAnswer);
+                            
                             if (question && lastSelectedAnswer) {
                                 // Player submitted an answer
                                 const selectedIndex = ['A','B','C','D'].indexOf(lastSelectedAnswer);
+                                console.log('🐛 [DEBUG UNIVERSAL] Selected index:', selectedIndex);
+                                console.log('🐛 [DEBUG UNIVERSAL] Correct answer index:', question.correct);
                                 isCorrect = selectedIndex === question.correct;
+                                console.log('🐛 [DEBUG UNIVERSAL] Is correct?', isCorrect);
                                 if (isCorrect) {
                                     const questionTimeLimit = 20;
                                     const t = Math.min(lastAnswerTimeTaken, questionTimeLimit);
@@ -1937,8 +2005,8 @@
                             console.warn('[UNIVERSAL POLL] Error updating score:', e);
                         }
                         
-                        // Start results transition polling for next phase
-                        startResultsTransitionPolling();
+                        // DISABLED - results transition polling replaced by simplified version
+                        // startResultsTransitionPolling();
                         
                         console.log('[UNIVERSAL POLL] ✅ Universal results transition complete!');
                     }
