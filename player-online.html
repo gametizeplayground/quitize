@@ -2,11 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <title>Quitize - Join Game</title>
     <link rel="stylesheet" href="playerstyles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4CAF50">
+    <style>
+        /* Prevent double-tap zoom on waiting room */
+        .no-zoom {
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* Allow selection on buttons and interactive elements */
+        .no-zoom button,
+        .no-zoom .reaction-btn {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        /* Prevent double-tap zoom globally on mobile */
+        @media (max-width: 768px) {
+            * {
+                touch-action: manipulation;
+            }
+        }
+    </style>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
@@ -78,7 +105,7 @@
         </div>
 
         <!-- Waiting Room Screen -->
-        <div class="screen" id="waiting-room-screen">
+        <div class="screen no-zoom" id="waiting-room-screen">
             <div class="main-content">
                 <div class="mascot-container">
                     <div class="mascot">
@@ -1419,6 +1446,46 @@
 
         // Initialize when page loads
         window.addEventListener('load', initializeGame);
+
+        // Prevent double-tap zoom on waiting room screen
+        function preventDoubleTabZoom() {
+            let lastTouchEnd = 0;
+            
+            // Prevent double-tap zoom on the entire waiting room screen
+            const waitingRoomScreen = document.getElementById('waiting-room-screen');
+            if (waitingRoomScreen) {
+                waitingRoomScreen.addEventListener('touchend', function(event) {
+                    const now = Date.now();
+                    if (now - lastTouchEnd <= 300) {
+                        event.preventDefault();
+                        console.log('🚫 Prevented double-tap zoom on waiting room');
+                    }
+                    lastTouchEnd = now;
+                }, false);
+            }
+            
+            // Also prevent on the main container
+            document.addEventListener('touchend', function(event) {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    // Only prevent if we're on the waiting room screen
+                    const currentScreen = document.querySelector('.screen.active');
+                    if (currentScreen && currentScreen.id === 'waiting-room-screen') {
+                        // Don't prevent if the target is a button or interactive element
+                        if (!event.target.closest('button') && 
+                            !event.target.closest('.reaction-btn') && 
+                            !event.target.closest('input')) {
+                            event.preventDefault();
+                            console.log('🚫 Prevented double-tap zoom on empty space');
+                        }
+                    }
+                }
+                lastTouchEnd = now;
+            }, { passive: false });
+        }
+        
+        // Initialize double-tap prevention
+        preventDoubleTabZoom();
 
         // Handle Enter key for game code input
         document.getElementById('game-code-input').addEventListener('keypress', function(e) {
