@@ -535,7 +535,7 @@
                         console.log('🔍 [SIMPLE TRANSITION] Current screen:', document.querySelector('.screen.active')?.id);
                         console.log('🔍 [SIMPLE TRANSITION] Current question:', data.current_question);
                         
-                        // ONLY transition to next phases, DO NOT recalculate results
+                                                // ONLY transition to next phases, DO NOT recalculate results
                         if (data.phase === 'scoreboard') {
                             console.log('🔍 [SIMPLE TRANSITION] ✅ SCOREBOARD PHASE DETECTED! Moving to loading screen...');
                             clearInterval(resultsTransitionPollingInterval);
@@ -555,18 +555,37 @@
                             if (isLastQuestion) {
                                 console.log('🔍 [SIMPLE TRANSITION] 🏁 Last question detected. Starting final results polling...');
                                 startFinalResultsPolling();
+                                
+                                // EMERGENCY FALLBACK: Force final screen after 5 seconds if polling fails
+                                setTimeout(() => {
+                                    const currentPhase = document.querySelector('.screen.active')?.id;
+                                    if (currentPhase === 'loading-screen') {
+                                        console.log('🚨 [EMERGENCY FALLBACK] 5 seconds passed, forcing final results screen!');
+                                        showScreen('final-results-screen');
+                                        updateFinalResults();
+                                        updatePlayerDisplay();
+                                    }
+                                }, 5000);
                             }
                             
                             console.log('🔍 [SIMPLE TRANSITION] ✅ Now showing loading screen for scoreboard phase');
                         } else if (data.phase === 'final-results' && !finalResultsTransitionInProgress) {
-                            console.log('🔍 [SIMPLE TRANSITION] Moving to final results');
+                            console.log('🔍 [SIMPLE TRANSITION] 🎉 FINAL RESULTS PHASE DETECTED! Moving to final results...');
                             finalResultsTransitionInProgress = true;
                             clearInterval(resultsTransitionPollingInterval);
                             resultsTransitionPollingInterval = null;
+                            
+                            // Force hide loading screen first
+                            const loadingScreen = document.getElementById('loading-screen');
+                            if (loadingScreen) {
+                                loadingScreen.classList.remove('active');
+                                loadingScreen.style.display = 'none';
+                            }
+                            
                             showScreen('final-results-screen');
                             await updateFinalResults();
                             updatePlayerDisplay();
-                            console.log('🔍 [SIMPLE TRANSITION] Final results transition complete!');
+                            console.log('🔍 [SIMPLE TRANSITION] ✅ Final results transition complete!');
                         }
                     }
                 } catch (error) {
