@@ -807,6 +807,15 @@
                         if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                         updatePlayerDisplay();
                         
+                        // If this is the last question, start final results polling immediately
+                        const isLastQuestion = (typeof totalQuestionsGlobal === 'number' && typeof data.current_question === 'number')
+                            ? (data.current_question + 1) >= totalQuestionsGlobal
+                            : false;
+                        if (isLastQuestion) {
+                            console.log('[POLL] 🚨 EMERGENCY: Last question scoreboard - starting final results polling!');
+                            startFinalResultsPolling();
+                        }
+                        
                         console.log('[POLL] 🚨 EMERGENCY: Scoreboard transition complete!');
                         return;
                     }
@@ -1846,6 +1855,15 @@
                                     if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                                     updatePlayerDisplay();
                                     
+                                    // If this is the last question, start final results polling immediately
+                                    const isLastQuestion = (typeof totalQuestionsGlobal === 'number' && typeof data.current_question === 'number')
+                                        ? (data.current_question + 1) >= totalQuestionsGlobal
+                                        : false;
+                                    if (isLastQuestion) {
+                                        console.log('🚨 [IMMEDIATE] Last question scoreboard - starting final results polling!');
+                                        startFinalResultsPolling();
+                                    }
+                                    
                                     console.log('🚨 [IMMEDIATE] Scoreboard loading screen shown!');
                                 } else if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                                     console.log('🚨 [IMMEDIATE] Host already at final results! Immediate transition!');
@@ -1884,6 +1902,15 @@
                                         const loadingTitle = document.querySelector('#loading-screen .loading-title');
                                         if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                                         updatePlayerDisplay();
+                                        
+                                        // If this is the last question, start final results polling immediately
+                                        const isLastQuestion = (typeof totalQuestionsGlobal === 'number' && typeof data.current_question === 'number')
+                                            ? (data.current_question + 1) >= totalQuestionsGlobal
+                                            : false;
+                                        if (isLastQuestion) {
+                                            console.log(`🚨 [IMMEDIATE-${i}] Last question scoreboard - starting final results polling!`);
+                                            startFinalResultsPolling();
+                                        }
                                         
                                         console.log(`🚨 [IMMEDIATE-${i}] Scoreboard loading shown!`);
                                     } else if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
