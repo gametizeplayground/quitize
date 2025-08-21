@@ -707,7 +707,7 @@ body::before {
     position: relative;
     transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 30px;
-    max-height: 350px;
+    max-height: 300px;
     transform-origin: bottom center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
