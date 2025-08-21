@@ -2207,6 +2207,10 @@
                         // DISABLED - results transition polling replaced by simplified version
                         // startResultsTransitionPolling();
                         
+                        // After forcing results via universal polling, begin next-phase detection
+                        // so we can move to scoreboard/final-results when the host advances.
+                        startSimplifiedTransitionPolling();
+                        
                         console.log('[UNIVERSAL POLL] ✅ Universal results transition complete!');
                     }
                 } catch (err) {
