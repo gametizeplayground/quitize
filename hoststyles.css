@@ -769,6 +769,7 @@ body::before {
     padding: 0 0.5rem; /* Add small padding for breathing room */
     box-sizing: border-box;
     margin-bottom: 10px;
+    margin-top: 3rem;
 }
 
 .result-option-row {
