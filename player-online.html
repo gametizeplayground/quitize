@@ -520,6 +520,16 @@
                             if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                             updatePlayerDisplay();
                             
+                            // If this is the last question, begin final-results polling so we
+                            // advance to the final leaderboard with the host.
+                            const isLastQuestion = (typeof totalQuestionsGlobal === 'number' && typeof data.current_question === 'number')
+                                ? (data.current_question + 1) >= totalQuestionsGlobal
+                                : false;
+                            if (isLastQuestion) {
+                                console.log('🔍 [SIMPLE TRANSITION] 🏁 Last question detected. Starting final results polling...');
+                                startFinalResultsPolling();
+                            }
+                            
                             console.log('🔍 [SIMPLE TRANSITION] ✅ Now showing loading screen for scoreboard phase');
                         } else if (data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                             console.log('🔍 [SIMPLE TRANSITION] Moving to final results');
