@@ -470,7 +470,8 @@
                             console.log('🔍 [SIMPLE TRANSITION] Moving to final results');
                             clearInterval(resultsTransitionPollingInterval);
                             resultsTransitionPollingInterval = null;
-                            showScreen('final-screen');
+                            showScreen('final-results-screen');
+                            await updateFinalResults();
                             updatePlayerDisplay();
                         }
                     }
@@ -653,7 +654,15 @@
                         console.log('[SCOREBOARD POLL] 🎉 Direct transition to final results detected!');
                         clearInterval(scoreboardToNextPollingInterval);
                         scoreboardToNextPollingInterval = null;
-                        
+                        // Clear all other polling intervals
+                        if (nextQuestionPollingInterval) {
+                            clearInterval(nextQuestionPollingInterval);
+                            nextQuestionPollingInterval = null;
+                        }
+                        if (finalResultsPollingInterval) {
+                            clearInterval(finalResultsPollingInterval);
+                            finalResultsPollingInterval = null;
+                        }
                         resetCountdownTracking();
                         showScreen('final-results-screen');
                         await updateFinalResults();
@@ -707,6 +716,16 @@
                         console.log('[POLL] 🚨 EMERGENCY: Final results phase detected in main polling!');
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
+                        // Clear all other polling intervals to prevent conflicts
+                        if (scoreboardToNextPollingInterval) {
+                            clearInterval(scoreboardToNextPollingInterval);
+                            scoreboardToNextPollingInterval = null;
+                        }
+                        if (finalResultsPollingInterval) {
+                            clearInterval(finalResultsPollingInterval);
+                            finalResultsPollingInterval = null;
+                        }
+                        resetCountdownTracking();
                         showScreen('final-results-screen');
                         await updateFinalResults();
                         return;
@@ -1196,41 +1215,51 @@
 
         // Clean up polling intervals
         function cleanupPollingIntervals() {
+            console.log('🧹 Cleaning up all polling intervals...');
             if (nextQuestionPollingInterval) {
                 clearInterval(nextQuestionPollingInterval);
                 nextQuestionPollingInterval = null;
+                console.log('🧹 Cleared nextQuestionPollingInterval');
             }
             if (scoreboardToNextPollingInterval) {
                 clearInterval(scoreboardToNextPollingInterval);
                 scoreboardToNextPollingInterval = null;
+                console.log('🧹 Cleared scoreboardToNextPollingInterval');
             }
             if (finalResultsPollingInterval) {
                 clearInterval(finalResultsPollingInterval);
                 finalResultsPollingInterval = null;
+                console.log('🧹 Cleared finalResultsPollingInterval');
             }
             if (resultsTransitionPollingInterval) {
                 clearInterval(resultsTransitionPollingInterval);
                 resultsTransitionPollingInterval = null;
+                console.log('🧹 Cleared resultsTransitionPollingInterval');
             }
             if (resultsPollingInterval) {
                 clearInterval(resultsPollingInterval);
                 resultsPollingInterval = null;
+                console.log('🧹 Cleared resultsPollingInterval');
             }
             if (universalResultsPollingInterval) {
                 clearInterval(universalResultsPollingInterval);
                 universalResultsPollingInterval = null;
+                console.log('🧹 Cleared universalResultsPollingInterval');
             }
             if (previewPollingInterval) {
                 clearInterval(previewPollingInterval);
                 previewPollingInterval = null;
+                console.log('🧹 Cleared previewPollingInterval');
             }
             if (waitingRoomPollingInterval) {
                 clearInterval(waitingRoomPollingInterval);
                 waitingRoomPollingInterval = null;
+                console.log('🧹 Cleared waitingRoomPollingInterval');
             }
             if (synchronizedCountdownInterval) {
                 clearInterval(synchronizedCountdownInterval);
                 synchronizedCountdownInterval = null;
+                console.log('🧹 Cleared synchronizedCountdownInterval');
             }
         }
 
@@ -1394,6 +1423,11 @@
         // In handleQuizStateUpdate, start polling if entering preview
         async function handleQuizStateUpdate(payload) {
             const { quizState } = payload.detail;
+            
+            // Define constants at function level to avoid redeclaration errors
+            const totalQuestions = 5; // Updated for Gametize History & Fun Facts Quiz
+            const currentQuestionNum = (quizState.currentQuestion || 0) + 1;
+            
             console.log('🎯 === QUIZ STATE UPDATE ===');
             console.log('Phase:', quizState.phase);
             console.log('Countdown:', quizState.countdown);
@@ -1704,6 +1738,12 @@
                     console.log('🔍 [RESULTS] Starting simplified transition polling...');
                     startSimplifiedTransitionPolling();
                     
+                    // ALSO start final results polling as backup for last question
+                    if (currentQuestionNum >= totalQuestions) {
+                        console.log('🔍 [RESULTS] This is the last question - also starting final results polling as backup');
+                        startFinalResultsPolling();
+                    }
+                    
                     break;
                     
                 case 'scoreboard':
@@ -1719,8 +1759,6 @@
                     }
                     
                     // Check if this is the last question - if so, prepare for final results
-                    const totalQuestions = 5; // Updated for Gametize History & Fun Facts Quiz
-                    const currentQuestionNum = (quizState.currentQuestion || 0) + 1;
                     console.log('📊 [SCOREBOARD] Question progress:', currentQuestionNum, '/', totalQuestions);
                     console.log('📊 [SCOREBOARD] Current question index:', quizState.currentQuestion);
                     console.log('📊 [SCOREBOARD] Calculated question number:', currentQuestionNum);
@@ -1732,8 +1770,8 @@
                         const loadingTitle = document.querySelector('#loading-screen .loading-title');
                         if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                         
-                        // DISABLED - final results polling replaced by simplified version
-                        // startFinalResultsPolling();
+                        // Start aggressive final results polling
+                        startFinalResultsPolling();
                     } else {
                         console.log('➡️ More questions remaining, waiting for host to click Next...');
                         // Show loading screen and IMMEDIATELY start aggressive polling for next question
@@ -2061,6 +2099,20 @@
                         clearInterval(finalResultsPollingInterval);
                         finalResultsPollingInterval = null;
                         
+                        // Clear all other polling intervals to prevent conflicts
+                        if (scoreboardToNextPollingInterval) {
+                            clearInterval(scoreboardToNextPollingInterval);
+                            scoreboardToNextPollingInterval = null;
+                        }
+                        if (nextQuestionPollingInterval) {
+                            clearInterval(nextQuestionPollingInterval);
+                            nextQuestionPollingInterval = null;
+                        }
+                        if (resultsTransitionPollingInterval) {
+                            clearInterval(resultsTransitionPollingInterval);
+                            resultsTransitionPollingInterval = null;
+                        }
+                        
                         resetCountdownTracking();
                         console.log('[FINAL POLL] 🚀 Showing final-results-screen...');
                         showScreen('final-results-screen');
@@ -2071,7 +2123,7 @@
                 } catch (err) {
                     console.error('[FINAL POLL] Exception:', err);
                 }
-            }, 200); // Very fast polling for final results (200ms)
+            }, 100); // Ultra-fast polling for final results (100ms)
         }
 
         // Update final results screen with player ranking and badges
