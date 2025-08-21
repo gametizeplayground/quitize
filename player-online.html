@@ -223,6 +223,8 @@
         let lastQuestionSeen = -1;
         // Track final results transition to prevent multiple transitions
         let finalResultsTransitionInProgress = false;
+        // Total number of questions, learned dynamically from host via quiz_state.question_data
+        let totalQuestionsGlobal = null;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -1493,7 +1495,11 @@
             const { quizState } = payload.detail;
             
             // Define constants at function level to avoid redeclaration errors
-            const totalQuestions = 2; // Reduced to 2 questions for faster testing
+            // Learn totalQuestions dynamically from host-provided quiz_state.question_data
+            if (quizState && quizState.questionData && quizState.questionData.totalQuestions != null) {
+                totalQuestionsGlobal = quizState.questionData.totalQuestions;
+            }
+            const totalQuestions = (typeof totalQuestionsGlobal === 'number') ? totalQuestionsGlobal : null;
             const currentQuestionNum = (quizState.currentQuestion || 0) + 1;
             
             console.log('🎯 === QUIZ STATE UPDATE ===');
@@ -1807,7 +1813,7 @@
                     startSimplifiedTransitionPolling();
                     
                     // ALSO start final results polling as backup for last question
-                    if (currentQuestionNum >= totalQuestions) {
+                    if (totalQuestions !== null && currentQuestionNum >= totalQuestions) {
                         console.log('🔍 [RESULTS] This is the last question - also starting final results polling as backup');
                         startFinalResultsPolling();
                         
@@ -1909,11 +1915,11 @@
                     }
                     
                     // Check if this is the last question - if so, prepare for final results
-                    console.log('📊 [SCOREBOARD] Question progress:', currentQuestionNum, '/', totalQuestions);
+                    console.log('📊 [SCOREBOARD] Question progress:', currentQuestionNum, '/', (totalQuestions !== null ? totalQuestions : 'unknown'));
                     console.log('📊 [SCOREBOARD] Current question index:', quizState.currentQuestion);
                     console.log('📊 [SCOREBOARD] Calculated question number:', currentQuestionNum);
                     
-                    if (currentQuestionNum >= totalQuestions) {
+                    if (totalQuestions !== null && currentQuestionNum >= totalQuestions) {
                         console.log('🏁 [SCOREBOARD] Last question completed! Starting final results polling...');
                         // Show loading screen but prepare for final results
                         showScreen('loading-screen');

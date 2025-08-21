@@ -747,7 +747,7 @@ Host interface displays full question content and images.
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'question-preview',
                 currentQuestion: currentQuestionIndex,
-                questionData: { ...question, liveStartISO },
+                questionData: { ...question, liveStartISO, totalQuestions: quizQuestions.length },
                 countdown: previewCountdown
             });
             
@@ -760,7 +760,7 @@ Host interface displays full question content and images.
                     await GameDB.updateQuizState(currentGameCode, {
                         phase: 'question-preview',
                         currentQuestion: currentQuestionIndex,
-                        questionData: { ...question, liveStartISO },
+                        questionData: { ...question, liveStartISO, totalQuestions: quizQuestions.length },
                         countdown: previewCountdown
                     });
                 } else {
@@ -825,7 +825,7 @@ Host interface displays full question content and images.
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'live-question',
                 currentQuestion: currentQuestionIndex,
-                questionData: question,
+                questionData: { ...question, totalQuestions: quizQuestions.length },
                 timeLeft: QUIZ_CONFIG.questionTimeLimit
             });
             
@@ -981,7 +981,7 @@ Host interface displays full question content and images.
             await GameDB.updateQuizState(currentGameCode, {
                 phase: 'results',
                 currentQuestion: currentQuestionIndex,
-                questionData: question
+                questionData: { ...question, totalQuestions: quizQuestions.length }
             });
         }
 
@@ -1103,7 +1103,7 @@ Host interface displays full question content and images.
                 await GameDB.updateQuizState(currentGameCode, {
                     phase: 'question-preview',
                     currentQuestion: currentQuestionIndex,
-                    questionData: quizQuestions[currentQuestionIndex],
+                    questionData: { ...quizQuestions[currentQuestionIndex], totalQuestions: quizQuestions.length },
                     countdown: 10
                 });
                 console.log('✅ Quiz state updated for next question');
