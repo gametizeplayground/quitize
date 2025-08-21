@@ -286,6 +286,9 @@
                 // Initialize next question broadcast listener
                 initializeNextQuestionListener(code);
                 
+                // Initialize final results broadcast listener
+                initializeFinalResultsListener(code);
+                
                 console.log('✅ Real-time subscriptions initialized for game:', code);
                 
                 // Test if subscriptions are working after a short delay
@@ -368,6 +371,7 @@
         function playAgain() {
             cleanupSubscriptions();
             cleanupPollingIntervals();
+            cleanupBroadcastChannels();
             window.location.href = 'player-online.html';
         }
 
@@ -535,7 +539,28 @@
                         console.log('🔍 [SIMPLE TRANSITION] Current screen:', document.querySelector('.screen.active')?.id);
                         console.log('🔍 [SIMPLE TRANSITION] Current question:', data.current_question);
                         
-                                                // ONLY transition to next phases, DO NOT recalculate results
+                        // Check for final-results phase FIRST (highest priority)
+                        if (data.phase === 'final-results' && !finalResultsTransitionInProgress) {
+                            console.log('🔍 [SIMPLE TRANSITION] 🎉 FINAL RESULTS PHASE DETECTED! Moving to final results...');
+                            finalResultsTransitionInProgress = true;
+                            clearInterval(resultsTransitionPollingInterval);
+                            resultsTransitionPollingInterval = null;
+                            
+                            // Force hide loading screen first
+                            const loadingScreen = document.getElementById('loading-screen');
+                            if (loadingScreen) {
+                                loadingScreen.classList.remove('active');
+                                loadingScreen.style.display = 'none';
+                            }
+                            
+                            showScreen('final-results-screen');
+                            await updateFinalResults();
+                            updatePlayerDisplay();
+                            console.log('🔍 [SIMPLE TRANSITION] ✅ Final results transition complete!');
+                            return; // Exit early to prevent other phase checks
+                        }
+                        
+                        // Check for scoreboard phase
                         if (data.phase === 'scoreboard') {
                             console.log('🔍 [SIMPLE TRANSITION] ✅ SCOREBOARD PHASE DETECTED! Moving to loading screen...');
                             clearInterval(resultsTransitionPollingInterval);
@@ -569,23 +594,6 @@
                             }
                             
                             console.log('🔍 [SIMPLE TRANSITION] ✅ Now showing loading screen for scoreboard phase');
-                        } else if (data.phase === 'final-results' && !finalResultsTransitionInProgress) {
-                            console.log('🔍 [SIMPLE TRANSITION] 🎉 FINAL RESULTS PHASE DETECTED! Moving to final results...');
-                            finalResultsTransitionInProgress = true;
-                            clearInterval(resultsTransitionPollingInterval);
-                            resultsTransitionPollingInterval = null;
-                            
-                            // Force hide loading screen first
-                            const loadingScreen = document.getElementById('loading-screen');
-                            if (loadingScreen) {
-                                loadingScreen.classList.remove('active');
-                                loadingScreen.style.display = 'none';
-                            }
-                            
-                            showScreen('final-results-screen');
-                            await updateFinalResults();
-                            updatePlayerDisplay();
-                            console.log('🔍 [SIMPLE TRANSITION] ✅ Final results transition complete!');
                         }
                     }
                 } catch (error) {
@@ -1235,6 +1243,55 @@
             }
         }
 
+        // Initialize final results broadcast listener
+        function initializeFinalResultsListener(gameCode) {
+            console.log('🎧 Setting up final results broadcast listener for game:', gameCode);
+            
+            try {
+                const finalResultsChannel = window.supabaseClient.channel(`final_results_${gameCode}`, {
+                    config: { broadcast: { self: true } }
+                });
+                
+                finalResultsChannel
+                    .on('broadcast', { event: 'final_results' }, (payload) => {
+                        console.log('🔔 RECEIVED FINAL RESULTS BROADCAST:', payload);
+                        const { game_code, timestamp } = payload.payload;
+                        
+                        if (game_code === currentGameCode) {
+                            console.log('🏆 HOST CLICKED NEXT ON FINAL QUESTION! BROADCAST RECEIVED! Immediately transitioning to final results...');
+                            
+                            // Clear ALL polling intervals immediately
+                            cleanupPollingIntervals();
+                            
+                            // Reset countdown tracking
+                            resetCountdownTracking();
+                            
+                            // Force transition to final results screen immediately
+                            showScreen('final-results-screen');
+                            
+                            // Update final results
+                            updateFinalResults().then(() => {
+                                updatePlayerDisplay();
+                                console.log('✅ Player transitioned to final results via broadcast');
+                            }).catch(e => {
+                                console.error('Error updating final results:', e);
+                            });
+                        } else {
+                            console.log('❌ Final results broadcast game code mismatch:', game_code, 'vs', currentGameCode);
+                        }
+                    })
+                    .subscribe((status) => {
+                        console.log('Final results broadcast listener status:', status);
+                    });
+                    
+                // Store reference for cleanup
+                window.finalResultsChannel = finalResultsChannel;
+                
+            } catch (error) {
+                console.error('❌ Failed to setup final results listener:', error);
+            }
+        }
+
         // Initialize event listeners
         function initializeEventListeners() {
             // Only attach game session updates here. The quiz state listener is
@@ -1398,6 +1455,21 @@
             }
         }
 
+        // Clean up broadcast channels
+        function cleanupBroadcastChannels() {
+            console.log('🧹 Cleaning up broadcast channels...');
+            if (window.nextQuestionChannel) {
+                window.supabaseClient.removeChannel(window.nextQuestionChannel);
+                window.nextQuestionChannel = null;
+                console.log('🧹 Cleared nextQuestionChannel');
+            }
+            if (window.finalResultsChannel) {
+                window.supabaseClient.removeChannel(window.finalResultsChannel);
+                window.finalResultsChannel = null;
+                console.log('🧹 Cleared finalResultsChannel');
+            }
+        }
+
         // Player heartbeat system to detect disconnections
         let heartbeatInterval = null;
         
@@ -1442,6 +1514,7 @@
             stopHeartbeat();
             cleanupSubscriptions();
             cleanupPollingIntervals();
+            cleanupBroadcastChannels();
         }
 
         // Clean up on page unload
@@ -2487,7 +2560,7 @@
                 } catch (err) {
                     console.error('[FINAL POLL] Exception:', err);
                 }
-            }, 100); // Ultra-fast polling for final results (100ms)
+            }, 50); // Even faster polling for final results (50ms)
         }
 
         // Update final results screen with player ranking and badges
