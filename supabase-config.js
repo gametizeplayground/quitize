@@ -271,9 +271,9 @@ const GameDB = {
             .from(TABLES.GAME_SESSIONS)
             .select('game_code')
             .eq('game_code', gameCode)
-            .single();
+            .maybeSingle();
             
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+        if (error) {
             console.error('Error checking game code:', error);
             return false;
         }
@@ -329,7 +329,7 @@ const GameDB = {
             .from(TABLES.GAME_SESSIONS)
             .select('*')
             .eq('game_code', gameCode)
-            .single();
+            .maybeSingle();
             
         if (error) {
             console.error('Error getting game session:', error);
