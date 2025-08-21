@@ -45,7 +45,7 @@ body::before {
     left: 0;
     right: 0;
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
     padding: 50px;
     z-index: 2;
@@ -58,6 +58,8 @@ body::before {
     width: auto;
     object-fit: contain;
 }
+
+
 
 .main-container {
     position: relative;
@@ -445,7 +447,8 @@ body::before {
     font-size: 2rem;
     font-weight: 600;
     text-align: center;
-    min-width: auto;
+    min-width: 1000px;
+    max-width: 1500px;
     box-shadow: 0 6px 0 rgba(219, 219, 219, 0.8);
     transition: all 0.3s ease;
 }
@@ -520,9 +523,9 @@ body::before {
     display: flex;
     align-items: center;
     gap: 3rem;
-    margin-top: 4rem;
+    margin-top: 10rem;
     width: 100%;
-    max-width: 1200px;
+    max-width: 2000px;
 }
 
 .timer-section {
@@ -559,32 +562,32 @@ body::before {
 }
 
 .answer-options {
-    margin-top: 2rem;
+    margin-top: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.5rem;
     width: 100%;
     max-width: none; /* Remove max-width restriction */
-    padding: 0 1rem; /* Add small padding for breathing room */
+    padding: 0 0.5rem; /* Add small padding for breathing room */
     box-sizing: border-box;
 }
 
 .option-row {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .answer-option {
     flex: 1;
     background: white;
     color: #333;
-    padding: 2rem 2.5rem; /* Increased padding for larger buttons */
-    border-radius: 50px;
+    padding: 2rem 2rem; /* Increased padding for larger buttons */
+    border-radius: 25px;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
     font-weight: bold;
-    font-size: 1.6rem; /* Slightly larger font */
+    font-size: 2rem; /* Slightly larger font */
     transition: all 0.2s ease;
     min-height: 80px; /* Increased minimum height */
 }
@@ -603,7 +606,7 @@ body::before {
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 1.5rem;
+    font-size: 2rem;
 }
 
 
@@ -616,7 +619,7 @@ body::before {
     background: white;
     color: #333;
     border: none;
-    padding: 1rem 2rem;
+    padding: 1.2rem 2rem; 
     border-radius: 50px;
     font-size: 1.5rem;
     font-weight: 600;
@@ -642,7 +645,7 @@ body::before {
     align-items: center;
     gap: 1rem;
     width: 100%;
-    max-width: 600px;
+    max-width: 800px;
     text-align: center;
 }
 
@@ -663,9 +666,9 @@ body::before {
     flex-direction: column;
     align-items: center;
     gap: 0;
-    margin-top: 6rem;
+    margin-top: 5rem;
     width: 100%;
-    max-width: 1000px; /* Increased from 900px to match question screen width */
+    max-width: 1500px; /* Increased from 900px to match question screen width */
     padding: 0 2rem;
     justify-content: flex-end;
     min-height: calc(100vh - 8rem);
@@ -760,28 +763,28 @@ body::before {
 .answer-results {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.5rem;
     width: 100%;
     max-width: none; /* Remove max-width restriction */
-    padding: 0 1rem; /* Add small padding for breathing room */
+    padding: 0 0.5rem; /* Add small padding for breathing room */
     box-sizing: border-box;
-    margin-bottom: 50px;
+    margin-bottom: 10px;
 }
 
 .result-option-row {
     display: flex;
-    gap: 1.5rem;
+    gap: 0;
 }
 
 .result-option {
     flex: 1;
     padding: 2rem 2.5rem; /* Increased padding to match answer options */
-    border-radius: 50px;
+    border-radius: 25px;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
     font-weight: bold;
-    font-size: 1.6rem; /* Increased font size to match */
+    font-size: 1.8rem; /* Increased font size to match */
     transition: all 0.3s ease;
     opacity: 0.3;
     transform: scale(0.95);
