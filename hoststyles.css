@@ -562,28 +562,31 @@ body::before {
     margin-top: 2rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
     width: 100%;
-    max-width: 800px; /* Increased from 600px to accommodate longer text */
+    max-width: none; /* Remove max-width restriction */
+    padding: 0 1rem; /* Add small padding for breathing room */
+    box-sizing: border-box;
 }
 
 .option-row {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .answer-option {
     flex: 1;
     background: white;
     color: #333;
-    padding: 1rem 2rem; /* Increased horizontal padding from 1.5rem to 2rem */
+    padding: 2rem 2.5rem; /* Increased padding for larger buttons */
     border-radius: 50px;
     display: flex;
     align-items: center;
     gap: 1rem;
     font-weight: bold;
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Slightly larger font */
     transition: all 0.2s ease;
+    min-height: 80px; /* Increased minimum height */
 }
 
 .option-a { background: #4285f4; color: white; }
@@ -757,30 +760,33 @@ body::before {
 .answer-results {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
     width: 100%;
-    max-width: 800px; /* Increased from 600px to match question screen width */
+    max-width: none; /* Remove max-width restriction */
+    padding: 0 1rem; /* Add small padding for breathing room */
+    box-sizing: border-box;
     margin-bottom: 50px;
 }
 
 .result-option-row {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .result-option {
     flex: 1;
-    padding: 1rem 2rem; /* Increased horizontal padding from 1.5rem to 2rem */
+    padding: 2rem 2.5rem; /* Increased padding to match answer options */
     border-radius: 50px;
     display: flex;
     align-items: center;
     gap: 1rem;
     font-weight: bold;
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Increased font size to match */
     transition: all 0.3s ease;
     opacity: 0.3;
     transform: scale(0.95);
     box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+    min-height: 80px; /* Increased to match answer options */
 }
 
 .result-option.correct {
