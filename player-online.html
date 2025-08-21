@@ -221,6 +221,8 @@
         let answerSubmitted = false;
         // Track question changes to reset state even if previous answer was submitted
         let lastQuestionSeen = -1;
+        // Track final results transition to prevent multiple transitions
+        let finalResultsTransitionInProgress = false;
 
         // Get game code from URL parameters
         function getGameCodeFromURL() {
@@ -466,19 +468,21 @@
                             resultsTransitionPollingInterval = null;
                             showScreen('scoreboard-screen');
                             updatePlayerDisplay();
-                        } else if (data.phase === 'final-results') {
+                        } else if (data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                             console.log('🔍 [SIMPLE TRANSITION] Moving to final results');
+                            finalResultsTransitionInProgress = true;
                             clearInterval(resultsTransitionPollingInterval);
                             resultsTransitionPollingInterval = null;
                             showScreen('final-results-screen');
                             await updateFinalResults();
                             updatePlayerDisplay();
+                            console.log('🔍 [SIMPLE TRANSITION] Final results transition complete!');
                         }
                     }
                 } catch (error) {
                     console.error('🔍 [SIMPLE TRANSITION] Error:', error);
                 }
-            }, 2000);
+            }, 250); // Much faster polling for critical transitions (250ms)
         }
 
         // DISABLED - Fallback polling: wait for phase 'results' then switch
@@ -712,8 +716,9 @@
                     console.log('  - Answer Submitted:', answerSubmitted);
                     
                     // 🚨 EMERGENCY FINAL RESULTS CHECK - Always check for final-results in main polling
-                    if (data && data.phase === 'final-results') {
+                    if (data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                         console.log('[POLL] 🚨 EMERGENCY: Final results phase detected in main polling!');
+                        finalResultsTransitionInProgress = true;
                         clearInterval(nextQuestionPollingInterval);
                         nextQuestionPollingInterval = null;
                         // Clear all other polling intervals to prevent conflicts
@@ -728,6 +733,7 @@
                         resetCountdownTracking();
                         showScreen('final-results-screen');
                         await updateFinalResults();
+                        console.log('[POLL] 🚨 EMERGENCY: Final results transition complete!');
                         return;
                     }
                     
@@ -1742,6 +1748,71 @@
                     if (currentQuestionNum >= totalQuestions) {
                         console.log('🔍 [RESULTS] This is the last question - also starting final results polling as backup');
                         startFinalResultsPolling();
+                        
+                        // IMMEDIATE check for final-results in case host already transitioned
+                        setTimeout(async () => {
+                            try {
+                                console.log('🚨 [IMMEDIATE] Checking if host already went to final results...');
+                                const { data, error } = await window.supabaseClient
+                                    .from('quiz_states')
+                                    .select('*')
+                                    .eq('game_code', currentGameCode)
+                                    .single();
+                                
+                                if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
+                                    console.log('🚨 [IMMEDIATE] Host already at final results! Immediate transition!');
+                                    finalResultsTransitionInProgress = true;
+                                    // Clear all polling
+                                    if (resultsTransitionPollingInterval) {
+                                        clearInterval(resultsTransitionPollingInterval);
+                                        resultsTransitionPollingInterval = null;
+                                    }
+                                    if (finalResultsPollingInterval) {
+                                        clearInterval(finalResultsPollingInterval);
+                                        finalResultsPollingInterval = null;
+                                    }
+                                    resetCountdownTracking();
+                                    showScreen('final-results-screen');
+                                    await updateFinalResults();
+                                    console.log('🚨 [IMMEDIATE] Final results transition complete!');
+                                }
+                            } catch (e) {
+                                console.error('🚨 [IMMEDIATE] Error in immediate check:', e);
+                            }
+                        }, 100); // Check after 100ms
+                        
+                        // REPEATED immediate checks
+                        for (let i = 1; i <= 10; i++) {
+                            setTimeout(async () => {
+                                try {
+                                    const { data, error } = await window.supabaseClient
+                                        .from('quiz_states')
+                                        .select('*')
+                                        .eq('game_code', currentGameCode)
+                                        .single();
+                                    
+                                    if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
+                                        console.log(`🚨 [IMMEDIATE-${i}] Host at final results! Immediate transition!`);
+                                        finalResultsTransitionInProgress = true;
+                                        // Clear all polling
+                                        if (resultsTransitionPollingInterval) {
+                                            clearInterval(resultsTransitionPollingInterval);
+                                            resultsTransitionPollingInterval = null;
+                                        }
+                                        if (finalResultsPollingInterval) {
+                                            clearInterval(finalResultsPollingInterval);
+                                            finalResultsPollingInterval = null;
+                                        }
+                                        resetCountdownTracking();
+                                        showScreen('final-results-screen');
+                                        await updateFinalResults();
+                                        console.log(`🚨 [IMMEDIATE-${i}] Final results transition complete!`);
+                                    }
+                                } catch (e) {
+                                    console.error(`🚨 [IMMEDIATE-${i}] Error:`, e);
+                                }
+                            }, i * 200); // Check every 200ms for 2 seconds
+                        }
                     }
                     
                     break;

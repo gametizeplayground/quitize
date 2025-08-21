@@ -901,6 +901,18 @@ body::before {
     box-shadow: 0 6px 0 rgba(164, 100, 40, 0.8);
 }
 
+.score-item.rank-4,
+.score-item.rank-5 {
+    color: white;
+}
+
+.score-item.rank-4 .player-name,
+.score-item.rank-4 .player-score,
+.score-item.rank-5 .player-name,
+.score-item.rank-5 .player-score {
+    color: white;
+}
+
 .medal-icon {
     width: 50px;
     height: 50px;
@@ -1181,6 +1193,18 @@ body::before {
 .score-item.rank-3 {
     background: linear-gradient(135deg, #cd7f32, #daa520);
     color: #333;
+}
+
+.score-item.rank-4,
+.score-item.rank-5 {
+    color: white;
+}
+
+.score-item.rank-4 .player-name,
+.score-item.rank-4 .player-score,
+.score-item.rank-5 .player-name,
+.score-item.rank-5 .player-score {
+    color: white;
 }
 
 .medal-icon {
