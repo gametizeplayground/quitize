@@ -1831,10 +1831,41 @@
                     console.log('🔍 [RESULTS] Starting simplified transition polling...');
                     startSimplifiedTransitionPolling();
                     
-                    // ALSO start final results polling as backup for last question
+                                            // ALSO start final results polling as backup for last question
                     if (totalQuestions !== null && currentQuestionNum >= totalQuestions) {
                         console.log('🔍 [RESULTS] This is the last question - also starting final results polling as backup');
                         startFinalResultsPolling();
+                        
+                        // EMERGENCY FALLBACK: Force final screen after 10 seconds if still not transitioned
+                        setTimeout(() => {
+                            const currentActiveScreen = document.querySelector('.screen.active')?.id;
+                            console.log('🚨 [EMERGENCY FALLBACK] Checking if still stuck after 10s. Current screen:', currentActiveScreen);
+                            
+                            if (currentActiveScreen !== 'final-results-screen') {
+                                console.log('🚨 [EMERGENCY FALLBACK] Still not on final screen! FORCING TRANSITION NOW!');
+                                const finalScreen = document.getElementById('final-results-screen');
+                                if (finalScreen) {
+                                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                                    finalScreen.classList.add('active');
+                                    finalScreen.style.display = 'flex';
+                                    finalScreen.style.visibility = 'visible';
+                                    finalScreen.style.opacity = '1';
+                                    finalScreen.style.zIndex = '1000';
+                                    finalScreen.style.position = 'fixed';
+                                    finalScreen.style.top = '0';
+                                    finalScreen.style.left = '0';
+                                    finalScreen.style.width = '100%';
+                                    finalScreen.style.height = '100%';
+                                    finalScreen.style.backgroundColor = '#2C5F2D';
+                                    
+                                    // Try to update results
+                                    updateFinalResults().catch(e => console.error('Emergency fallback updateFinalResults failed:', e));
+                                    console.log('🚨 [EMERGENCY FALLBACK] FORCED final screen activation!');
+                                }
+                            } else {
+                                console.log('✅ [EMERGENCY FALLBACK] Final screen already active, no action needed');
+                            }
+                        }, 10000);
                         
                         // IMMEDIATE check for final-results in case host already transitioned
                         setTimeout(async () => {
@@ -2311,11 +2342,61 @@
                         }
                         
                         resetCountdownTracking();
-                        console.log('[FINAL POLL] 🚀 Showing final-results-screen...');
-                        showScreen('final-results-screen');
+                        
+                        // FIRST: Force screen transition immediately
+                        console.log('[FINAL POLL] 🚀 FORCE Showing final-results-screen...');
+                        const finalScreen = document.getElementById('final-results-screen');
+                        const loadingScreen = document.getElementById('loading-screen');
+                        
+                        if (finalScreen) {
+                            // AGGRESSIVELY hide loading screen first
+                            if (loadingScreen) {
+                                loadingScreen.classList.remove('active');
+                                loadingScreen.style.display = 'none';
+                                loadingScreen.style.visibility = 'hidden';
+                                loadingScreen.style.zIndex = '-1';
+                                console.log('[FINAL POLL] 🚫 HIDDEN loading screen aggressively');
+                            }
+                            
+                            // Remove active from all screens
+                            document.querySelectorAll('.screen').forEach(s => {
+                                s.classList.remove('active');
+                                if (s.id !== 'final-results-screen') {
+                                    s.style.display = 'none';
+                                    s.style.zIndex = '-1';
+                                }
+                            });
+                            
+                            // Add active to final screen
+                            finalScreen.classList.add('active');
+                            // Apply ULTRA aggressive styling
+                            finalScreen.style.display = 'flex !important';
+                            finalScreen.style.visibility = 'visible !important';
+                            finalScreen.style.opacity = '1 !important';
+                            finalScreen.style.zIndex = '9999 !important';
+                            finalScreen.style.position = 'fixed';
+                            finalScreen.style.top = '0';
+                            finalScreen.style.left = '0';
+                            finalScreen.style.width = '100%';
+                            finalScreen.style.height = '100%';
+                            finalScreen.style.backgroundColor = '#2C5F2D';
+                            
+                            // Force browser reflow
+                            finalScreen.offsetHeight;
+                            
+                            console.log('[FINAL POLL] ✅ ULTRA FORCED final screen visible!');
+                            console.log('[FINAL POLL] Final screen computed style display:', window.getComputedStyle(finalScreen).display);
+                            console.log('[FINAL POLL] Final screen computed style visibility:', window.getComputedStyle(finalScreen).visibility);
+                        }
+                        
+                        // THEN: Update the content
                         console.log('[FINAL POLL] 🏆 Calling updateFinalResults...');
-                        await updateFinalResults();
-                        console.log('[FINAL POLL] ✅ Final results transition complete!');
+                        try {
+                            await updateFinalResults();
+                            console.log('[FINAL POLL] ✅ Final results transition complete!');
+                        } catch (error) {
+                            console.error('[FINAL POLL] ❌ Error in updateFinalResults, but screen is already shown:', error);
+                        }
                     }
                 } catch (err) {
                     console.error('[FINAL POLL] Exception:', err);
@@ -2329,18 +2410,43 @@
                 console.log('🏆 [FINAL UPDATE] Starting final results update for player:', playerName);
                 console.log('🏆 [FINAL UPDATE] Current game code:', currentGameCode);
                 
-                // Verify final results screen is visible
+                // AGGRESSIVE SCREEN ACTIVATION - Always ensure final screen is visible
                 const finalScreen = document.getElementById('final-results-screen');
-                const isActive = finalScreen?.classList.contains('active');
                 console.log('🏆 [FINAL UPDATE] Final results screen exists:', !!finalScreen);
-                console.log('🏆 [FINAL UPDATE] Final results screen is active:', isActive);
                 
-                // Force the screen to be active if it's not
-                if (finalScreen && !isActive) {
-                    console.warn('🏆 [FINAL UPDATE] Final screen not active, forcing activation...');
-                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                if (finalScreen) {
+                    console.log('🏆 [FINAL UPDATE] FORCING final screen activation...');
+                    
+                    // Remove active class from ALL screens first
+                    document.querySelectorAll('.screen').forEach(s => {
+                        s.classList.remove('active');
+                        console.log('🏆 [FINAL UPDATE] Removed active from:', s.id);
+                    });
+                    
+                    // Add active class to final screen
                     finalScreen.classList.add('active');
-                    console.log('🏆 [FINAL UPDATE] Forced final screen activation');
+                    
+                    // Apply aggressive styling to ensure visibility
+                    finalScreen.style.display = 'flex';
+                    finalScreen.style.visibility = 'visible';
+                    finalScreen.style.opacity = '1';
+                    finalScreen.style.zIndex = '1000';
+                    finalScreen.style.position = 'fixed';
+                    finalScreen.style.top = '0';
+                    finalScreen.style.left = '0';
+                    finalScreen.style.width = '100%';
+                    finalScreen.style.height = '100%';
+                    finalScreen.style.backgroundColor = '#2C5F2D'; // Ensure background is visible
+                    
+                    console.log('🏆 [FINAL UPDATE] Applied aggressive styling to final screen');
+                    
+                    // Verify screen is now active
+                    const isNowActive = finalScreen.classList.contains('active');
+                    console.log('🏆 [FINAL UPDATE] Final screen is now active:', isNowActive);
+                    console.log('🏆 [FINAL UPDATE] Current active screen:', document.querySelector('.screen.active')?.id);
+                } else {
+                    console.error('🏆 [FINAL UPDATE] Final screen element not found!');
+                    return;
                 }
                 
                 // Get session data and all players to calculate ranking
