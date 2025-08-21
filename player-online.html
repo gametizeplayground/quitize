@@ -503,14 +503,22 @@
                     
                     if (data) {
                         console.log('🔍 [SIMPLE TRANSITION] Current phase:', data.phase);
+                        console.log('🔍 [SIMPLE TRANSITION] Current screen:', document.querySelector('.screen.active')?.id);
+                        console.log('🔍 [SIMPLE TRANSITION] Current question:', data.current_question);
                         
                         // ONLY transition to next phases, DO NOT recalculate results
                         if (data.phase === 'scoreboard') {
-                            console.log('🔍 [SIMPLE TRANSITION] Moving to scoreboard');
+                            console.log('🔍 [SIMPLE TRANSITION] ✅ SCOREBOARD PHASE DETECTED! Moving to loading screen...');
                             clearInterval(resultsTransitionPollingInterval);
                             resultsTransitionPollingInterval = null;
-                            showScreen('scoreboard-screen');
+                            
+                            // Show loading screen with "calculating results" message
+                            showScreen('loading-screen');
+                            const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                            if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
                             updatePlayerDisplay();
+                            
+                            console.log('🔍 [SIMPLE TRANSITION] ✅ Now showing loading screen for scoreboard phase');
                         } else if (data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                             console.log('🔍 [SIMPLE TRANSITION] Moving to final results');
                             finalResultsTransitionInProgress = true;
@@ -772,6 +780,22 @@
                         console.log('[POLL] 🚨 EMERGENCY: Screen transition called, now updating final results...');
                         await updateFinalResults();
                         console.log('[POLL] 🚨 EMERGENCY: Final results transition complete!');
+                        return;
+                    }
+                    
+                    // 🚨 EMERGENCY SCOREBOARD CHECK - Check for scoreboard phase
+                    if (data && data.phase === 'scoreboard') {
+                        console.log('[POLL] 🚨 EMERGENCY: Scoreboard phase detected in main polling!');
+                        clearInterval(nextQuestionPollingInterval);
+                        nextQuestionPollingInterval = null;
+                        
+                        // Show loading screen for scoreboard
+                        showScreen('loading-screen');
+                        const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                        if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
+                        updatePlayerDisplay();
+                        
+                        console.log('[POLL] 🚨 EMERGENCY: Scoreboard transition complete!');
                         return;
                     }
                     
@@ -1797,7 +1821,17 @@
                                     .eq('game_code', currentGameCode)
                                     .single();
                                 
-                                if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
+                                if (!error && data && data.phase === 'scoreboard') {
+                                    console.log('🚨 [IMMEDIATE] Host already at scoreboard! Showing loading screen...');
+                                    
+                                    // Show loading screen for scoreboard
+                                    showScreen('loading-screen');
+                                    const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                                    if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
+                                    updatePlayerDisplay();
+                                    
+                                    console.log('🚨 [IMMEDIATE] Scoreboard loading screen shown!');
+                                } else if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                                     console.log('🚨 [IMMEDIATE] Host already at final results! Immediate transition!');
                                     finalResultsTransitionInProgress = true;
                                     
@@ -1826,7 +1860,17 @@
                                         .eq('game_code', currentGameCode)
                                         .single();
                                     
-                                    if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
+                                    if (!error && data && data.phase === 'scoreboard') {
+                                        console.log(`🚨 [IMMEDIATE-${i}] Host at scoreboard! Loading screen...`);
+                                        
+                                        // Show loading screen for scoreboard
+                                        showScreen('loading-screen');
+                                        const loadingTitle = document.querySelector('#loading-screen .loading-title');
+                                        if (loadingTitle) loadingTitle.textContent = 'Calculating final results...';
+                                        updatePlayerDisplay();
+                                        
+                                        console.log(`🚨 [IMMEDIATE-${i}] Scoreboard loading shown!`);
+                                    } else if (!error && data && data.phase === 'final-results' && !finalResultsTransitionInProgress) {
                                         console.log(`🚨 [IMMEDIATE-${i}] Host at final results! Immediate transition!`);
                                         finalResultsTransitionInProgress = true;
                                         // Clear all polling
