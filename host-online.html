@@ -351,12 +351,17 @@ Host interface displays full question content and images.
         
         /* Loading Screen Styles */
         #api-loading-screen {
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             text-align: center;
+            z-index: 9999 !important;
+        }
+        
+        #api-loading-screen.hidden {
+            display: none !important;
         }
         
         .loading-content {
@@ -592,6 +597,20 @@ Host interface displays full question content and images.
                 hideLoadingState();
                 hideApiError();
                 
+                // Force show main content as backup
+                setTimeout(() => {
+                    forceShowMainContent();
+                }, 200);
+                
+                // Safety timeout: if loading screen is still visible after 5 seconds, force hide it
+                setTimeout(() => {
+                    const loadingScreen = document.getElementById('api-loading-screen');
+                    if (loadingScreen && loadingScreen.style.display !== 'none') {
+                        console.warn('⚠️ Loading screen still visible after 5 seconds, forcing hide...');
+                        forceShowMainContent();
+                    }
+                }, 5000);
+                
             } catch (error) {
                 console.error('❌ Failed to fetch questions from API:', error);
                 apiError = error;
@@ -635,13 +654,26 @@ Host interface displays full question content and images.
         
         // Show loading state while fetching questions
         function showLoadingState() {
+            console.log('🔧 Showing loading state...');
+            
             // Hide main container and show loading screen
-            document.querySelector('.main-container').style.display = 'none';
-            document.querySelector('.header').style.display = 'none';
+            const mainContainer = document.querySelector('.main-container');
+            const header = document.querySelector('.header');
+            
+            if (mainContainer) {
+                mainContainer.style.display = 'none';
+                console.log('🔧 Main container hidden');
+            }
+            
+            if (header) {
+                header.style.display = 'none';
+                console.log('🔧 Header hidden');
+            }
             
             // Create or update loading screen
             let loadingScreen = document.getElementById('api-loading-screen');
             if (!loadingScreen) {
+                console.log('🔧 Creating new loading screen...');
                 loadingScreen = document.createElement('div');
                 loadingScreen.id = 'api-loading-screen';
                 loadingScreen.className = 'quiz-screen active';
@@ -650,20 +682,58 @@ Host interface displays full question content and images.
                         <div class="loading-spinner"></div>
                         <h2>Loading Questions...</h2>
                         <p>Fetching quiz questions from Gametize</p>
+                        <button class="skip-loading-btn" onclick="forceShowMainContent()" style="margin-top: 20px; padding: 10px 20px; background: #ffeb3b; color: #333; border: none; border-radius: 25px; cursor: pointer;">
+                            Skip Loading
+                        </button>
                     </div>
                 `;
                 document.body.appendChild(loadingScreen);
+                console.log('✅ Loading screen created and added to DOM');
             } else {
+                console.log('🔧 Using existing loading screen, adding active class');
                 loadingScreen.classList.add('active');
             }
+            
+            console.log('✅ Loading state shown successfully');
         }
         
         // Hide loading state
         function hideLoadingState() {
+            console.log('🔧 Hiding loading state...');
             const loadingScreen = document.getElementById('api-loading-screen');
             if (loadingScreen) {
+                console.log('🔧 Found loading screen, hiding it...');
                 loadingScreen.classList.remove('active');
+                loadingScreen.classList.add('hidden');
+                // Also set inline style as backup
+                loadingScreen.style.display = 'none';
+                
+                // Remove from DOM after a short delay to ensure smooth transition
+                setTimeout(() => {
+                    if (loadingScreen.parentNode) {
+                        loadingScreen.parentNode.removeChild(loadingScreen);
+                        console.log('✅ Loading screen removed from DOM');
+                    }
+                }, 100);
+            } else {
+                console.log('⚠️ No loading screen found to hide');
             }
+            
+            // Show main container and header when loading is complete
+            const mainContainer = document.querySelector('.main-container');
+            const header = document.querySelector('.header');
+            
+            if (mainContainer) {
+                mainContainer.style.display = 'flex';
+                console.log('✅ Main container shown');
+            }
+            
+            if (header) {
+                header.style.display = 'flex';
+                console.log('✅ Header shown');
+            }
+            
+            console.log('✅ Loading state hidden successfully');
         }
         
         // Hide API error and show main content
@@ -719,6 +789,60 @@ Host interface displays full question content and images.
             }
             
             return true;
+        }
+        
+        // Force show main content (fallback function)
+        function forceShowMainContent() {
+            console.log('🔧 Force showing main content...');
+            
+            // Debug: Check what elements exist
+            console.log('🔍 DOM elements check:');
+            console.log('🔍 Loading screen:', document.getElementById('api-loading-screen'));
+            console.log('🔍 Error screen:', document.getElementById('api-error-screen'));
+            console.log('🔍 Main container:', document.querySelector('.main-container'));
+            console.log('🔍 Header:', document.querySelector('.header'));
+            
+            // Hide any loading or error screens
+            const loadingScreen = document.getElementById('api-loading-screen');
+            const errorScreen = document.getElementById('api-error-screen');
+            
+            if (loadingScreen) {
+                console.log('🔧 Hiding loading screen...');
+                loadingScreen.style.display = 'none';
+                loadingScreen.classList.remove('active');
+                loadingScreen.classList.add('hidden');
+                // Remove from DOM
+                if (loadingScreen.parentNode) {
+                    loadingScreen.parentNode.removeChild(loadingScreen);
+                    console.log('✅ Loading screen removed from DOM');
+                }
+            }
+            
+            if (errorScreen) {
+                console.log('🔧 Hiding error screen...');
+                errorScreen.style.display = 'none';
+                errorScreen.classList.remove('active');
+            }
+            
+            // Show main container and header
+            const mainContainer = document.querySelector('.main-container');
+            const header = document.querySelector('.header');
+            
+            if (mainContainer) {
+                mainContainer.style.display = 'flex';
+                console.log('✅ Main container force shown');
+            } else {
+                console.warn('⚠️ Main container not found');
+            }
+            
+            if (header) {
+                header.style.display = 'flex';
+                console.log('✅ Header force shown');
+            } else {
+                console.warn('⚠️ Header not found');
+            }
+            
+            console.log('✅ Main content force shown successfully');
         }
         
         // Configuration settings for easy customization
