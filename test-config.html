@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Gametize Config Loading</title>
+</head>
+<body>
+    <h1>Testing Gametize Config Loading</h1>
+    
+    <div id="status">Loading...</div>
+    
+    <!-- Load the config file -->
+    <script src="gametize-config.js"></script>
+    
+    <script>
+        // Check if config loaded
+        const statusDiv = document.getElementById('status');
+        
+        if (typeof GAMETIZE_CONFIG !== 'undefined') {
+            statusDiv.innerHTML = `
+                <h2 style="color: green;">✅ Config Loaded Successfully!</h2>
+                <pre>${JSON.stringify(GAMETIZE_CONFIG, null, 2)}</pre>
+            `;
+        } else {
+            statusDiv.innerHTML = `
+                <h2 style="color: red;">❌ Config Failed to Load</h2>
+                <p>GAMETIZE_CONFIG is undefined</p>
+            `;
+        }
+        
+        // Also check window object
+        if (window.GAMETIZE_CONFIG) {
+            console.log('✅ Config found in window object:', window.GAMETIZE_CONFIG);
+        } else {
+            console.log('❌ Config not found in window object');
+        }
+    </script>
+</body>
+</html>

@@ -15,17 +15,23 @@ The quiz system now fetches questions automatically from the Gametize API instea
 
 ### 1. Topic ID Configuration
 
-To change the quiz topic, edit the `gametize-config.js` file:
+To change the quiz topic, edit the `host-online.html` file and locate the `initializeGametizeConfig()` function:
 
 ```javascript
-const GAMETIZE_CONFIG = {
-    baseUrl: 'https://beta.gametize.com/api3',
-    topicId: '83890', // Change this for different topics
-    limit: 10,
-    retryAttempts: 3,
-    retryDelay: 2000
-};
+function initializeGametizeConfig() {
+    // ... existing code ...
+    GAMETIZE_CONFIG = {
+        baseUrl: 'https://beta.gametize.com/api3',
+        topicId: '83890', // Change this for different topics
+        limit: 10,
+        retryAttempts: 3,
+        retryDelay: 2000
+    };
+    // ... existing code ...
+}
 ```
+
+**Note**: The configuration is currently inline to avoid external script loading issues. Once resolved, it will use the external `gametize-config.js` file.
 
 **To find your topic ID:**
 1. Go to your Gametize dashboard
@@ -146,6 +152,17 @@ The console shows detailed logging:
 - Raw API responses
 - Question transformation details
 - Error information
+
+### Troubleshooting Configuration Issues
+
+If you encounter `GAMETIZE_CONFIG is not defined` errors:
+
+1. **Check the console** for configuration initialization messages
+2. **Verify the topic ID** is correct in the `initializeGametizeConfig()` function
+3. **Test API connectivity** using the `test-simple.html` file
+4. **Check network requests** in the browser's Network tab
+
+The system now uses inline configuration to avoid external script loading issues.
 
 ## API Response Format
 
