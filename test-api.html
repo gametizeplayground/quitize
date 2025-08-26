@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Gametize API Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            border-color: #4caf50;
+            color: #2e7d32;
+        }
+        .loading {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Gametize API Integration</h1>
+        
+        <div class="test-section">
+            <h3>1. Test API Connection</h3>
+            <button class="test-button" onclick="testApiConnection()">Test API Connection</button>
+            <div id="api-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Test Question Fetching</h3>
+            <button class="test-button" onclick="testQuestionFetching()">Fetch Questions</button>
+            <div id="questions-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Test Question Transformation</h3>
+            <button class="test-button" onclick="testQuestionTransformation()">Transform Questions</button>
+            <div id="transformation-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. Test Configuration</h3>
+            <button class="test-button" onclick="testConfiguration()">Show Configuration</button>
+            <div id="config-result" class="result"></div>
+        </div>
+    </div>
+
+    <script src="gametize-config.js"></script>
+    <script>
+        // Test API connection
+        async function testApiConnection() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing API connection...';
+            
+            try {
+                const response = await fetch(`${GAMETIZE_CONFIG.baseUrl}/topics/${GAMETIZE_CONFIG.topicId}/challenges.json?limit=5`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ API Connection Successful!\n\nStatus: ${response.status}\nQuestions Found: ${data.data ? data.data.length : 0}\nResponse Keys: ${Object.keys(data).join(', ')}`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ API Connection Failed:\n\n${error.message}`;
+            }
+        }
+        
+        // Test question fetching
+        async function testQuestionFetching() {
+            const resultDiv = document.getElementById('questions-result');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Fetching questions...';
+            
+            try {
+                const response = await fetch(`${GAMETIZE_CONFIG.baseUrl}/topics/${GAMETIZE_CONFIG.topicId}/challenges.json?limit=5`);
+                const data = await response.json();
+                
+                if (!data.data || !Array.isArray(data.data)) {
+                    throw new Error('Invalid API response format');
+                }
+                
+                const quizQuestions = data.data.filter(challenge => 
+                    challenge.challengeType === 'quiz' && 
+                    challenge.options && 
+                    challenge.options.length > 0
+                );
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Questions Fetched Successfully!\n\nTotal Challenges: ${data.data.length}\nQuiz Questions: ${quizQuestions.length}\n\nSample Question:\n${quizQuestions[0] ? JSON.stringify(quizQuestions[0], null, 2) : 'No questions found'}`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Question Fetching Failed:\n\n${error.message}`;
+            }
+        }
+        
+        // Test question transformation
+        async function testQuestionTransformation() {
+            const resultDiv = document.getElementById('transformation-result');
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing question transformation...';
+            
+            try {
+                const response = await fetch(`${GAMETIZE_CONFIG.baseUrl}/topics/${GAMETIZE_CONFIG.topicId}/challenges.json?limit=3`);
+                const data = await response.json();
+                
+                const transformedQuestions = data.data
+                    .filter(challenge => challenge.challengeType === 'quiz' && challenge.options && challenge.options.length > 0)
+                    .map(challenge => {
+                        // Determine correct answer
+                        let correctAnswerIndex = -1;
+                        const options = challenge.options.map((option, index) => {
+                            if (challenge.challengeDescription && 
+                                challenge.challengeDescription.toLowerCase().includes(option.optionTitle.toLowerCase())) {
+                                correctAnswerIndex = index;
+                            }
+                            return option.optionTitle;
+                        });
+                        
+                        if (correctAnswerIndex === -1) {
+                            correctAnswerIndex = 0;
+                        }
+                        
+                        return {
+                            title: challenge.challengeTitle,
+                            image: challenge.challengeImage || 'fallback-image.jpg',
+                            options: options,
+                            correct: correctAnswerIndex,
+                            explanation: challenge.challengeDescription,
+                            challengeId: challenge.id,
+                            points: challenge.points || 10
+                        };
+                    });
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Question Transformation Successful!\n\nTransformed Questions: ${transformedQuestions.length}\n\nSample Transformed Question:\n${JSON.stringify(transformedQuestions[0], null, 2)}`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Question Transformation Failed:\n\n${error.message}`;
+            }
+        }
+        
+        // Test configuration
+        function testConfiguration() {
+            const resultDiv = document.getElementById('config-result');
+            resultDiv.className = 'result success';
+            resultDiv.textContent = `📋 Current Configuration:\n\n${JSON.stringify(GAMETIZE_CONFIG, null, 2)}\n\nAPI Endpoint:\n${GAMETIZE_CONFIG.baseUrl}/topics/${GAMETIZE_CONFIG.topicId}/challenges.json?limit=${GAMETIZE_CONFIG.limit}`;
+        }
+    </script>
+</body>
+</html>
